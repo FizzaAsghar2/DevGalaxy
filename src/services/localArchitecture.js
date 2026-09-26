@@ -167,13 +167,13 @@ function deriveName(idea, domain) {
 
 const COMPLEXITY_LIMITS = {
   simple: { pages: 5, features: 3, tables: 3, apis: 1, roles: 2 },
-  standard: { pages: 7, features: 4, tables: 4, apis: 2, roles: 3 },
-  advanced: { pages: 10, features: 6, tables: 6, apis: 3, roles: 4 },
+  medium: { pages: 7, features: 4, tables: 4, apis: 2, roles: 3 },
+  complex: { pages: 10, features: 6, tables: 6, apis: 3, roles: 4 },
 }
 
-export function generateLocalArchitecture(idea, { appType = 'SaaS', complexity = 'standard' } = {}) {
+export function generateLocalArchitecture(idea, { appType = 'SaaS', complexity = 'medium' } = {}) {
   const domain = pickDomain(idea)
-  const limits = COMPLEXITY_LIMITS[complexity] ?? COMPLEXITY_LIMITS.standard
+  const limits = COMPLEXITY_LIMITS[complexity] ?? COMPLEXITY_LIMITS.medium
   const isMobile = /mobile/i.test(appType)
 
   const pages = ['Home', 'Sign In', 'Sign Up', ...domain.pages, 'Profile', 'Admin Dashboard']
@@ -246,14 +246,14 @@ export const DEMO_IDEA =
   'I want to build an online food delivery application where customers browse restaurants, place orders and track delivery in realtime.'
 
 export function buildDemoGalaxy() {
-  const architecture = generateLocalArchitecture(DEMO_IDEA, { appType: 'Website', complexity: 'advanced' })
+  const architecture = generateLocalArchitecture(DEMO_IDEA, { appType: 'Website', complexity: 'complex' })
   return {
     id: 'demo',
     project_name: architecture.projectName,
     original_idea: DEMO_IDEA,
     description: architecture.description,
     app_type: 'Website',
-    complexity: 'advanced',
+    complexity: 'complex',
     architecture_data: architecture,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),

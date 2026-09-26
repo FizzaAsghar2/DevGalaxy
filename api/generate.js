@@ -27,8 +27,8 @@ tailor every item to the user's idea; never return an empty category.`
 
 const COMPLEXITY_HINT = {
   simple: '5-6 pages, 3-4 features, 3-4 tables, 1-2 APIs.',
-  standard: '7-9 pages, 5-7 features, 5-6 tables, 2-3 APIs.',
-  advanced: '10-12 pages, 8-10 features, 7-9 tables, 3-5 APIs.',
+  medium: '7-9 pages, 5-7 features, 5-6 tables, 2-3 APIs.',
+  complex: '10-12 pages, 8-10 features, 7-9 tables, 3-5 APIs.',
 }
 
 const RATE_LIMIT = { windowMs: 60_000, max: 8 }
@@ -109,7 +109,7 @@ export default async function handler(req, res) {
 
   const baseUrl = (process.env.AI_BASE_URL ?? 'https://api.openai.com/v1').replace(/\/$/, '')
   const model = process.env.AI_MODEL ?? 'gpt-4o-mini'
-  const complexity = ['simple', 'standard', 'advanced'].includes(body.complexity) ? body.complexity : 'standard'
+  const complexity = ['simple', 'medium', 'complex'].includes(body.complexity) ? body.complexity : 'medium'
   const appType = typeof body.appType === 'string' ? body.appType.slice(0, 40) : 'Website'
 
   try {

@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo } from 'react'
 import {
   Background,
-  Controls,
   Handle,
   MiniMap,
   Position,
@@ -118,14 +117,27 @@ function buildFlow(architecture, layout, focus, visibleCategories) {
   return { nodes, edges }
 }
 
-function FlowInner({ architecture, layout, focus, visibleCategories, onSelect }) {
+function FlowInner({ architecture, layout, focus, visibleCategories, onSelect, commands }) {
   const computed = useMemo(
     () => buildFlow(architecture, layout, focus, visibleCategories),
     [architecture, focus, layout, visibleCategories],
   )
   const [nodes, setNodes, onNodesChange] = useNodesState(computed.nodes)
   const [edges, setEdges, onEdgesChange] = useEdgesState(computed.edges)
-  const { fitView } = useReactFlow()
+  const { fitView, zoomIn, zoomOut } = useReactFlow()
+
+  // Share the workspace's floating zoom controls with the 2D map.
+  useEffect(() => {
+    if (!commands) return undefined
+    commands.current = {
+      zoomIn: () => zoomIn({ duration: 200 }),
+      zoomOut: () => zoomOut({ duration: 200 }),
+      fit: () => fitView({ padding: 0.25, duration: 400 }),
+    }
+    return () => {
+      commands.current = null
+    }
+  }, [commands, fitView, zoomIn, zoomOut])
 
   useEffect(() => {
     setNodes(computed.nodes)
@@ -157,7 +169,6 @@ function FlowInner({ architecture, layout, focus, visibleCategories, onSelect })
       className="bg-transparent"
     >
       <Background color="#1e293b" gap={40} size={1} />
-      <Controls className="!border-white/10 !bg-void-800/80 !text-white" showInteractive={false} />
       <MiniMap
         pannable
         zoomable

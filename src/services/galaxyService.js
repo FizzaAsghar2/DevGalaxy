@@ -9,9 +9,11 @@ import { normaliseArchitecture } from './architectureSchema'
 const STORAGE_KEY = 'devgalaxy:galaxies'
 
 function hydrate(row) {
+  const architecture = normaliseArchitecture(row.architecture_data, row.project_name)
+  // The row name is authoritative: renaming a galaxy must not leave a stale title inside the architecture.
   return {
     ...row,
-    architecture_data: normaliseArchitecture(row.architecture_data, row.project_name),
+    architecture_data: { ...architecture, projectName: row.project_name || architecture.projectName },
   }
 }
 

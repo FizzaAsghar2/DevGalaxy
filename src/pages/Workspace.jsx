@@ -207,6 +207,7 @@ export default function Workspace({ demo = false }) {
               focus={focus}
               visibleCategories={visibleCategories}
               onSelect={handleSelect}
+              commands={commands}
             />
           )}
         </Suspense>
@@ -280,8 +281,14 @@ export default function Workspace({ demo = false }) {
           <ViewControls
             onZoomIn={() => commands.current?.zoomIn()}
             onZoomOut={() => commands.current?.zoomOut()}
-            onFit={resetView}
-            onReset={resetView}
+            onFit={() => {
+              resetView()
+              commands.current?.fit()
+            }}
+            onReset={() => {
+              resetView()
+              commands.current?.fit()
+            }}
             hint={use3D ? 'Drag to orbit · scroll to zoom · click a planet to explore' : 'Drag nodes · scroll to zoom'}
           />
 

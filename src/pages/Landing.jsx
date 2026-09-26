@@ -93,7 +93,8 @@ export default function Landing() {
       {/* ---------------------------------------------------------------- hero */}
       <section ref={heroRef} className="relative flex min-h-[calc(100vh-4rem)] items-center overflow-hidden">
         {/* The galaxy keeps the right half on wide screens so it never sits under the copy. */}
-        <div className="absolute inset-0 lg:left-[34%]">
+        {/* overflow-hidden keeps the orbiting HTML labels inside the galaxy column. */}
+        <div className="absolute inset-0 overflow-hidden lg:left-[34%]">
           {use3D && heroInView ? (
             <Suspense fallback={<HeroFallback animate={!prefersReduced} />}>
               <HeroScene tier={tier} reducedMotion={Boolean(prefersReduced)} />
