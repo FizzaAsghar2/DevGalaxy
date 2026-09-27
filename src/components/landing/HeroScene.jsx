@@ -7,6 +7,7 @@ import Starfield from '../three/Starfield'
 import Nebula from '../three/Nebula'
 import { Connection, OrbitRing } from '../three/Connections'
 import { Planet, ProjectCore } from '../three/Orbs'
+import { useHtmlPortal } from '../three/htmlPortal'
 import { CATEGORIES } from '../../lib/categories'
 import { qualityFor } from '../../hooks/useDeviceProfile'
 
@@ -15,6 +16,7 @@ const CORE = [0, 0, 0]
 function OrbitingSystem({ tier, reducedMotion }) {
   const group = useRef()
   const quality = qualityFor(tier)
+  const portal = useHtmlPortal()
 
   const nodes = useMemo(
     () =>
@@ -45,7 +47,7 @@ function OrbitingSystem({ tier, reducedMotion }) {
       <OrbitRing radius={5.6} color="#8b5cf6" opacity={0.16} segments={quality.orbitDetail * 2} />
       <OrbitRing radius={7.0} color="#22d3ee" opacity={0.1} segments={quality.orbitDetail * 2} />
       <ProjectCore color="#8b5cf6" radius={1.55} animate={!reducedMotion} detail={quality.orbitDetail} />
-      <Html position={[0, 2.6, 0]} center distanceFactor={12} style={{ pointerEvents: 'none' }}>
+      <Html portal={portal} position={[0, 2.6, 0]} center distanceFactor={12} style={{ pointerEvents: 'none' }}>
         <div className="whitespace-nowrap rounded-full border border-violet-300/30 bg-void-900/75 px-3 py-1 font-display text-[12px] text-white backdrop-blur-sm">
           ◉ Your Project
         </div>
@@ -62,7 +64,7 @@ function OrbitingSystem({ tier, reducedMotion }) {
           />
           <group position={node.position}>
             <Planet color={node.color} radius={0.55} animate={!reducedMotion} seed={index} />
-            <Html position={[0, 1.05, 0]} center distanceFactor={13} style={{ pointerEvents: 'none' }}>
+            <Html portal={portal} position={[0, 1.05, 0]} center distanceFactor={13} style={{ pointerEvents: 'none' }}>
               <div
                 className="whitespace-nowrap rounded-full border px-2 py-0.5 text-[10px] text-slate-100 backdrop-blur-sm"
                 style={{ borderColor: `${node.color}55`, background: 'rgba(7,11,26,0.7)' }}
@@ -79,7 +81,7 @@ function OrbitingSystem({ tier, reducedMotion }) {
 
 export default function HeroScene({ tier = 'high', reducedMotion = false }) {
   return (
-    <SpaceCanvas tier={tier} camera={{ position: [0, 3.2, 15], fov: 52 }} className="!absolute inset-0">
+    <SpaceCanvas tier={tier} camera={{ position: [0, 3.2, 21], fov: 48 }} className="!absolute inset-0">
       <Starfield count={qualityFor(tier).stars} radius={70} />
       <Nebula />
       <OrbitingSystem tier={tier} reducedMotion={reducedMotion} />

@@ -2,6 +2,7 @@ import { Suspense, useEffect, useState } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { AdaptiveDpr, PerformanceMonitor, Preload } from '@react-three/drei'
 import { qualityFor } from '../../hooks/useDeviceProfile'
+import { HtmlPortalProvider } from './htmlPortal'
 
 /**
  * Shared R3F canvas. Pauses rendering when the tab or the canvas is off-screen
@@ -38,7 +39,9 @@ export default function SpaceCanvas({ tier = 'high', camera, children, className
       <ambientLight intensity={0.45} />
       <pointLight position={[0, 0, 0]} intensity={tier === 'low' ? 30 : 60} color="#a78bfa" distance={40} />
       <directionalLight position={[8, 12, 10]} intensity={0.7} color="#93c5fd" />
-      <Suspense fallback={null}>{children}</Suspense>
+      <HtmlPortalProvider>
+        <Suspense fallback={null}>{children}</Suspense>
+      </HtmlPortalProvider>
       <AdaptiveDpr pixelated={false} />
       <Preload all />
     </Canvas>

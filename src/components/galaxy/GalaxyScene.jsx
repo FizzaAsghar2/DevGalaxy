@@ -6,6 +6,7 @@ import Nebula from '../three/Nebula'
 import Starfield from '../three/Starfield'
 import { Connection, OrbitRing } from '../three/Connections'
 import { Planet, ProjectCore } from '../three/Orbs'
+import { useHtmlPortal } from '../three/htmlPortal'
 import { qualityFor } from '../../hooks/useDeviceProfile'
 
 const CORE_POSITION = [0, 0, 0]
@@ -45,7 +46,7 @@ function CameraRig({ layout, focus, presentation, reducedMotion, commands, onFit
       controls.current?.update()
     }
 
-    commands.current = {
+    const api = {
       zoomIn: () => dolly(0.78),
       zoomOut: () => dolly(1.28),
       fit: () => {
@@ -53,8 +54,10 @@ function CameraRig({ layout, focus, presentation, reducedMotion, commands, onFit
         onFitRequest?.()
       },
     }
+    commands.current = api
     return () => {
-      commands.current = null
+      // Only clear our own registration: the other renderer may already own the ref.
+      if (commands.current === api) commands.current = null
     }
   }, [camera, commands, onFitRequest])
 
@@ -118,8 +121,16 @@ function CameraRig({ layout, focus, presentation, reducedMotion, commands, onFit
 }
 
 function NodeLabel({ position, children, color, muted = false, size = 'base' }) {
+  const portal = useHtmlPortal()
   return (
-    <Html position={position} center distanceFactor={14} zIndexRange={[20, 0]} style={{ pointerEvents: 'none' }}>
+    <Html
+      portal={portal}
+      position={position}
+      center
+      distanceFactor={14}
+      zIndexRange={[20, 0]}
+      style={{ pointerEvents: 'none' }}
+    >
       <div
         className={`whitespace-nowrap rounded-full border px-2.5 py-1 font-display backdrop-blur-sm transition-opacity ${
           size === 'lg' ? 'text-[13px]' : 'text-[11px]'

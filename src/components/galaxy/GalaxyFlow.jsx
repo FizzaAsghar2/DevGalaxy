@@ -124,20 +124,23 @@ function FlowInner({ architecture, layout, focus, visibleCategories, onSelect, c
   )
   const [nodes, setNodes, onNodesChange] = useNodesState(computed.nodes)
   const [edges, setEdges, onEdgesChange] = useEdgesState(computed.edges)
-  const { fitView, zoomIn, zoomOut } = useReactFlow()
+  const { fitView, getZoom, zoomTo } = useReactFlow()
 
   // Share the workspace's floating zoom controls with the 2D map.
   useEffect(() => {
     if (!commands) return undefined
-    commands.current = {
-      zoomIn: () => zoomIn({ duration: 200 }),
-      zoomOut: () => zoomOut({ duration: 200 }),
+    const step = (factor) => zoomTo(getZoom() * factor, { duration: 220 })
+    const api = {
+      zoomIn: () => step(1.45),
+      zoomOut: () => step(1 / 1.45),
       fit: () => fitView({ padding: 0.25, duration: 400 }),
     }
+    commands.current = api
     return () => {
-      commands.current = null
+      // Only clear our own registration: the other renderer may already own the ref.
+      if (commands.current === api) commands.current = null
     }
-  }, [commands, fitView, zoomIn, zoomOut])
+  }, [commands, fitView, getZoom, zoomTo])
 
   useEffect(() => {
     setNodes(computed.nodes)
