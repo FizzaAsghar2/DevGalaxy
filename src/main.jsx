@@ -4,13 +4,16 @@ import { BrowserRouter } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import App from './App'
 import { AuthProvider } from './auth/AuthProvider'
+import { AccountProvider } from './account/AccountProvider'
 import './index.css'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <BrowserRouter>
       <AuthProvider>
-        <App />
+        <AccountProvider>
+          <App />
+        </AccountProvider>
         <Toaster
           position="bottom-right"
           toastOptions={{

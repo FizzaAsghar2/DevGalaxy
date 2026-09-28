@@ -2,9 +2,13 @@ import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } fro
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import toast from 'react-hot-toast'
-import { ArrowLeft, Layers3, Sparkles, X } from 'lucide-react'
+import { ArrowLeft, LayoutTemplate, Layers3, Orbit, Sparkles, X } from 'lucide-react'
 import { CATEGORIES, CATEGORY_BY_KEY } from '../lib/categories'
-import { buildGalaxyLayout } from '../services/galaxyLayout'
+import { buildGalaxyLayout, slug } from '../services/galaxyLayout'
+import { requestUi, UI_MODE_ACTION } from '../services/uiService'
+import { normaliseUiSpec } from '../services/uiSchema'
+import { useSession } from '../auth/AuthProvider'
+import { useAccount } from '../account/AccountProvider'
 import { buildDemoGalaxy } from '../services/localArchitecture'
 import { useGalaxyService } from '../hooks/useGalaxies'
 import { useDeviceProfile } from '../hooks/useDeviceProfile'
@@ -18,6 +22,7 @@ import { ErrorState, LoadingState } from '../components/ui/States'
 
 const GalaxyScene = lazy(() => import('../components/galaxy/GalaxyScene'))
 const GalaxyFlow = lazy(() => import('../components/galaxy/GalaxyFlow'))
+const UiPreview = lazy(() => import('../components/ui-preview/UiPreview'))
 
 const ALL_CATEGORY_KEYS = CATEGORIES.map((category) => category.key)
 
@@ -39,6 +44,12 @@ export default function Workspace({ demo = false }) {
   const [presentation, setPresentation] = useState(false)
   const [force2D, setForce2D] = useState(false)
   const commands = useRef(null)
+  const { getToken, isSignedIn } = useSession()
+  const accountApi = useAccount()
+  const [view, setView] = useState('galaxy')
+  const [uiSpec, setUiSpec] = useState(null)
+  const [uiPageId, setUiPageId] = useState(null)
+  const [uiBusy, setUiBusy] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -52,6 +63,7 @@ export default function Workspace({ demo = false }) {
           setError('This galaxy does not exist, or it belongs to another explorer.')
         } else {
           setGalaxy(result)
+          setUiSpec(result.ui_data ? normaliseUiSpec(result.ui_data, result.architecture_data) : null)
           setError(null)
         }
       } catch (err) {
@@ -126,6 +138,66 @@ export default function Workspace({ demo = false }) {
     })
   }, [])
 
+  const runUi = useCallback(
+    async (mode, options = {}) => {
+      if (!galaxy) return false
+      const action = UI_MODE_ACTION[mode]
+      // The public demo galaxy is generated in the browser and never counts against a plan.
+      if (!demo && !accountApi.ensure(action)) return false
+      setUiBusy(true)
+      try {
+        const result = await requestUi({ mode, galaxy, current: uiSpec, getToken, offlineOnly: demo || !isSignedIn, ...options })
+        setUiSpec(result.ui)
+        if (!demo) {
+          await service.saveUi(galaxy.id, result.ui)
+          if (accountApi.account?.mode === 'demo') accountApi.recordDemoUsage(action)
+          else accountApi.refresh()
+        }
+        if (!uiPageId || !result.ui.uiPages.some((p) => p.id === uiPageId)) setUiPageId(result.ui.uiPages[0]?.id ?? null)
+        if (mode === 'customize') toast.success(result.changes?.length ? `Applied: ${result.changes.slice(0, 3).join(', ')}` : 'Customisation applied')
+        else toast.success(mode === 'variation' ? 'New design direction ready' : 'UI preview ready')
+        return true
+      } catch (err) {
+        if (err.code === 'upgrade_required') accountApi.showUpgrade(err.action ?? action)
+        else toast.error(err.message)
+        return false
+      } finally {
+        setUiBusy(false)
+      }
+    },
+    [accountApi, demo, galaxy, getToken, isSignedIn, service, uiPageId, uiSpec],
+  )
+
+  const viewUiForPage = useCallback(
+    (pageName) => {
+      setView('ui')
+      setSelection(null)
+      const target = uiSpec?.uiPages.find((p) => p.architecturePage === pageName || p.name === pageName)
+      if (target) setUiPageId(target.id)
+      else if (uiSpec) toast('This page has no UI yet — regenerate the UI to include it.')
+    },
+    [uiSpec],
+  )
+
+  const viewPageInArchitecture = useCallback(
+    (uiPage) => {
+      if (!uiPage || !layout) return
+      const pages = layout.categories.find((c) => c.key === 'pages')
+      const child = pages?.children.find((c) => c.id === `pages:${slug(uiPage.architecturePage)}` || c.name === uiPage.architecturePage)
+      setView('galaxy')
+      if (child) {
+        setFocus({ level: 3, categoryKey: 'pages', nodeId: child.id, nodeLabel: child.name })
+        setSelection({ kind: 'child', id: child.id })
+      } else if (pages) focusCategory(pages)
+    },
+    [focusCategory, layout],
+  )
+
+  const lockedActions = useMemo(() => {
+    if (demo) return {}
+    return Object.fromEntries(Object.keys(UI_MODE_ACTION).map((mode) => [UI_MODE_ACTION[mode], !accountApi.entitlement(UI_MODE_ACTION[mode]).allowed]))
+  }, [accountApi, demo])
+
   const resetView = useCallback(() => {
     setFocus({ level: 1, categoryKey: null, nodeId: null, nodeLabel: null })
     setSelection(null)
@@ -134,6 +206,7 @@ export default function Workspace({ demo = false }) {
 
   useEffect(() => {
     const onKey = (event) => {
+      if (view === 'ui') return
       if (event.key === 'Escape') {
         if (presentation) setPresentation(false)
         else if (focus.level > 1) handleNavigate({ level: 1 })
@@ -146,7 +219,7 @@ export default function Workspace({ demo = false }) {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [focus.level, handleNavigate, presentation])
+  }, [focus.level, handleNavigate, presentation, view])
 
   if (loading) return <LoadingState label="Opening your galaxy…" />
 
@@ -213,9 +286,27 @@ export default function Workspace({ demo = false }) {
         </Suspense>
       </div>
 
+      {view === 'ui' && (
+        <div className="absolute inset-0 z-20 bg-void-900/85 backdrop-blur-sm">
+          <Suspense fallback={<LoadingState label="Loading UI preview…" />}>
+            <UiPreview
+              galaxy={galaxy}
+              spec={uiSpec}
+              busy={uiBusy}
+              pageId={uiPageId}
+              onPageChange={setUiPageId}
+              onRun={runUi}
+              onViewArchitecture={viewPageInArchitecture}
+              locked={lockedActions}
+              projectName={architecture.projectName}
+            />
+          </Suspense>
+        </div>
+      )}
+
       {/* hover tooltip */}
       <AnimatePresence>
-        {hoveredNode && !presentation && (
+        {hoveredNode && !presentation && view === 'galaxy' && (
           <motion.div
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
@@ -237,12 +328,37 @@ export default function Workspace({ demo = false }) {
             layout={layout}
             onNavigate={handleNavigate}
             onSelect={handleSelect}
-            onPresent={() => setPresentation(true)}
+            onPresent={() => {
+              setView('galaxy')
+              setPresentation(true)
+            }}
+            hideSearch={view === 'ui'}
             right={
-              <div className="hidden items-center gap-2 sm:flex">
+              <div className="flex items-center gap-2">
+                <div className="flex items-center rounded-lg border border-white/10 bg-void-900/60 p-0.5" role="tablist" aria-label="Workspace view">
+                  {[
+                    ['galaxy', 'Galaxy', Orbit],
+                    ['ui', 'UI Preview', LayoutTemplate],
+                  ].map(([key, label, Icon]) => (
+                    <button
+                      key={key}
+                      type="button"
+                      role="tab"
+                      aria-selected={view === key}
+                      onClick={() => {
+                        setView(key)
+                        if (key === 'ui') setSelection(null)
+                      }}
+                      className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs transition ${view === key ? 'bg-violet-500/25 text-white' : 'text-slate-400 hover:text-white'}`}
+                    >
+                      <Icon className="h-3.5 w-3.5" />
+                      <span className="hidden sm:inline">{label}</span>
+                    </button>
+                  ))}
+                </div>
                 <button
                   type="button"
-                  className="btn-ghost px-2.5 py-1.5 text-xs"
+                  className={`btn-ghost hidden px-2.5 py-1.5 text-xs sm:inline-flex ${view === 'ui' ? 'sm:hidden' : ''}`}
                   onClick={() => {
                     setForce2D((value) => !value)
                     toast(force2D ? 'Switched to 3D galaxy' : 'Switched to 2D map')
@@ -252,7 +368,7 @@ export default function Workspace({ demo = false }) {
                   <Layers3 className="h-3.5 w-3.5" />
                   <span className="hidden lg:inline">{use3D ? '2D map' : '3D galaxy'}</span>
                 </button>
-                <Link to="/galaxies" className="btn-ghost px-2.5 py-1.5 text-xs">
+                <Link to={demo ? '/' : '/galaxies'} className="btn-ghost hidden px-2.5 py-1.5 text-xs sm:inline-flex">
                   <ArrowLeft className="h-3.5 w-3.5" />
                   <span className="hidden lg:inline">Galaxies</span>
                 </Link>
@@ -260,6 +376,8 @@ export default function Workspace({ demo = false }) {
             }
           />
 
+          {view === 'galaxy' && (
+          <>
           <CategoryRail
             layout={layout}
             focus={focus}
@@ -276,6 +394,8 @@ export default function Workspace({ demo = false }) {
             layout={layout}
             onClose={() => setSelection(null)}
             onSelectChild={(child) => handleSelect({ kind: 'child', id: child.id, categoryKey: child.categoryKey })}
+            onViewUi={viewUiForPage}
+            hasUi={Boolean(uiSpec)}
           />
 
           <ViewControls
@@ -301,6 +421,8 @@ export default function Workspace({ demo = false }) {
               <Sparkles className="mr-1.5 inline h-3.5 w-3.5 text-violet-300" />
               Architecture summary
             </button>
+          )}
+          </>
           )}
         </>
       )}

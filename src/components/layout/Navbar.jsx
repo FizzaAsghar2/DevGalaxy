@@ -1,13 +1,17 @@
 import { useState } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
-import { LogOut, Menu, Sparkles, X } from 'lucide-react'
+import { LogOut, Menu, ShieldCheck, Sparkles, X } from 'lucide-react'
+import { useAccount } from '../../account/AccountProvider'
+import PlanBadge from '../ui/PlanBadge'
 import { useSession } from '../../auth/AuthProvider'
 
 const LINKS = [
   { to: '/', label: 'Home' },
   { to: '/#features', label: 'Features' },
   { to: '/#how-it-works', label: 'How It Works' },
+  { to: '/pricing', label: 'Pricing' },
   { to: '/galaxies', label: 'My Galaxies', protected: true },
+  { to: '/admin', label: 'Admin', protected: true, admin: true },
 ]
 
 function Logo() {
@@ -28,8 +32,10 @@ export default function Navbar() {
   const { isSignedIn, user, signIn, signUp, signOut, openProfile, mode } = useSession()
   const [open, setOpen] = useState(false)
   const navigate = useNavigate()
+  const { isAdmin } = useAccount()
 
-  const links = LINKS.filter((link) => !link.protected || isSignedIn)
+  // Admin visibility comes from /api/me (database role). The /api/admin endpoints re-check it on every call.
+  const links = LINKS.filter((link) => (!link.protected || isSignedIn) && (!link.admin || isAdmin))
 
   return (
     <header className="sticky top-0 z-40 border-b border-white/5 bg-void-900/70 backdrop-blur-xl">
@@ -47,6 +53,7 @@ export default function Navbar() {
                 }`
               }
             >
+              {link.admin && <ShieldCheck className="mr-1 inline h-3.5 w-3.5 text-amber-300" />}
               {link.label}
             </NavLink>
           ))}
@@ -55,6 +62,7 @@ export default function Navbar() {
         <div className="hidden items-center gap-2 md:flex">
           {isSignedIn ? (
             <>
+              <PlanBadge compact />
               <button type="button" className="btn-primary" onClick={() => navigate('/create')}>
                 <Sparkles className="h-4 w-4" /> Create Galaxy
               </button>

@@ -3,7 +3,7 @@ import { itemsForCategory } from './architectureSchema'
 
 const DEG = Math.PI / 180
 
-function slug(value) {
+export function slug(value) {
   return String(value).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
 }
 
