@@ -187,9 +187,13 @@ function chartItems(ctx) {
   return DAYS.map((label) => ({ label, value: 20 + Math.round(ctx.random() * 80) }))
 }
 
+function fieldNames(table) {
+  return (table?.fields ?? []).map((f) => (typeof f === 'string' ? f : f?.name)).filter(Boolean)
+}
+
 function tableFor(ctx, limit = 6) {
-  const fields = (ctx.primaryTable?.fields ?? []).filter((f) => !/(^id$|_id$|created_at|updated_at|description)/.test(f)).slice(0, 3)
-  const columns = [ctx.E, ...fields.map(titleCase).filter((c) => c !== 'Title'), 'Status'].slice(0, 4)
+  const fields = fieldNames(ctx.primaryTable).filter((f) => !/(^id$|_id$|created_at|updated_at|description|^status$|latitude|longitude)/.test(f)).slice(0, 3)
+  const columns = [...new Set([ctx.E, ...fields.map(titleCase).filter((c) => c !== 'Title'), 'Status'])].slice(0, 4)
   return {
     type: 'table',
     title: `Recent ${ctx.Es.toLowerCase()}`,
@@ -211,7 +215,7 @@ function cardsFor(ctx, variant) {
 }
 
 function formFor(ctx, pageName) {
-  const fields = (ctx.primaryTable?.fields ?? [])
+  const fields = fieldNames(ctx.primaryTable)
     .filter((f) => !/(^id$|_id$|created_at|updated_at|status)/.test(f))
     .slice(0, 5)
     .map((f) => ({
