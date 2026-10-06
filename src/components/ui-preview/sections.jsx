@@ -238,10 +238,10 @@ function Table({ section, query, filter, onAction }) {
                 <tr key={`${item.title}-${r}`} className="cursor-pointer transition hover:brightness-95" style={{ borderBottom: '1px solid var(--p-border)', color: 'var(--p-text)' }} onClick={() => onAction('Open', item)}>
                   {columns.map((c, ci) => {
                     const last = ci === columns.length - 1
-                    const value = last ? item.status : cells[ci] ?? ''
+                    const value = Array.isArray(item.cells) && item.cells[ci] != null ? item.cells[ci] : last ? item.status : cells[ci] ?? ''
                     return (
                       <td key={c} className={`px-4 py-2.5 ${ci === 0 ? 'font-semibold' : ''}`} style={ci === 0 ? {} : { color: 'var(--p-muted)' }}>
-                        {last ? <Badge>{value}</Badge> : ci === 0 ? <span className="flex items-center gap-2"><span className="h-6 w-6 shrink-0" style={{ borderRadius: 'var(--p-radius-sm)', background: `color-mix(in srgb, ${PALETTE[r % 3]} 30%, transparent)` }} />{value}</span> : value}
+                        {last && c.toLowerCase() === 'status' ? <Badge>{value}</Badge> : ci === 0 ? <span className="flex items-center gap-2"><span className="h-6 w-6 shrink-0" style={{ borderRadius: 'var(--p-radius-sm)', background: `color-mix(in srgb, ${PALETTE[r % 3]} 30%, transparent)` }} />{value}</span> : value}
                       </td>
                     )
                   })}

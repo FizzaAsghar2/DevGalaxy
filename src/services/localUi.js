@@ -191,6 +191,22 @@ function fieldNames(table) {
   return (table?.fields ?? []).map((f) => (typeof f === 'string' ? f : f?.name)).filter(Boolean)
 }
 
+function cellFor(column, record, i, ctx) {
+  const c = column.toLowerCase()
+  if (c === 'status') return record.status
+  if (/price|rate|amount|cost|fee|total|budget|salary/.test(c)) return ctx.money ? record.meta : `$${20 + ((i * 53) % 400)}`
+  if (/location|address|city|area|place|region/.test(c)) return PLACES[(i + 2) % PLACES.length]
+  if (/date|time|_at|_on|deadline|when|day/.test(c)) return `${DAYS[i % DAYS.length]} ${10 + i}:00`
+  if (/owner|user|member|author|name|contact|assignee|host|player/.test(c)) return PEOPLE[(i + 3) % PEOPLE.length]
+  if (/rating|score|points|rank/.test(c)) return record.rating
+  if (/category|type|tag|kind|genre/.test(c)) return record.tag
+  if (/count|quantity|capacity|size|seats|stock/.test(c)) return String(2 + ((i * 7) % 30))
+  if (/email/.test(c)) return `${PEOPLE[(i + 3) % PEOPLE.length].split(' ')[0].toLowerCase()}@example.com`
+  if (/phone/.test(c)) return `+1 555 01${10 + i}`
+  if (/url|link|website/.test(c)) return `example.com/${i + 1}`
+  return record.subtitle.split(' · ')[0]
+}
+
 function tableFor(ctx, limit = 6) {
   const fields = fieldNames(ctx.primaryTable).filter((f) => !/(^id$|_id$|created_at|updated_at|description|^status$|latitude|longitude)/.test(f)).slice(0, 3)
   const columns = [...new Set([ctx.E, ...fields.map(titleCase).filter((c) => c !== 'Title'), 'Status'])].slice(0, 4)
@@ -198,7 +214,13 @@ function tableFor(ctx, limit = 6) {
     type: 'table',
     title: `Recent ${ctx.Es.toLowerCase()}`,
     columns,
-    items: ctx.records.slice(0, limit).map((r) => ({ title: r.title, subtitle: r.subtitle, status: r.status, meta: r.meta })),
+    items: ctx.records.slice(0, limit).map((r, i) => ({
+      title: r.title,
+      subtitle: r.subtitle,
+      status: r.status,
+      meta: r.meta,
+      cells: columns.map((column, ci) => (ci === 0 ? r.title : cellFor(column, r, i, ctx))),
+    })),
     actions: ['Export'],
   }
 }

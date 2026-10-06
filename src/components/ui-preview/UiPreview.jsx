@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   ArrowLeft, Crown, Loader2, Maximize2, Monitor, Orbit, Palette, RefreshCw, Shuffle, Smartphone, Sparkles, Tablet, Wand2, X,
@@ -173,6 +174,7 @@ export default function UiPreview({ galaxy, spec, busy, pageId, onPageChange, on
         <AnimatePresence>{designOpen && <DesignPanel spec={spec} onClose={() => setDesignOpen(false)} />}</AnimatePresence>
       </div>
 
+      {createPortal(
       <AnimatePresence>
         {demo && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[60] bg-black">
@@ -182,7 +184,9 @@ export default function UiPreview({ galaxy, spec, busy, pageId, onPageChange, on
             </button>
           </motion.div>
         )}
-      </AnimatePresence>
+      </AnimatePresence>,
+        document.body,
+      )}
     </div>
   )
 }
