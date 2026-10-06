@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { ArrowRight, X } from 'lucide-react'
+import { ArrowRight, LayoutTemplate, X } from 'lucide-react'
 import { CATEGORY_BY_KEY } from '../../lib/categories'
 import { architectureStats } from '../../services/architectureSchema'
 
@@ -94,7 +94,7 @@ function CategoryBody({ category, onSelectChild }) {
   )
 }
 
-function ChildBody({ child, architecture }) {
+function ChildBody({ child, architecture, onViewUi, hasUi }) {
   const { categoryKey, data } = child
 
   if (categoryKey === 'database') {
@@ -177,6 +177,11 @@ function ChildBody({ child, architecture }) {
     return (
       <div className="space-y-5">
         {data.description && <p className="text-sm text-slate-300">{data.description}</p>}
+        {onViewUi && (
+          <button type="button" onClick={() => onViewUi(child.name)} className="btn-primary w-full py-2 text-xs">
+            <LayoutTemplate className="h-3.5 w-3.5" /> {hasUi ? 'View UI' : 'Generate UI preview'}
+          </button>
+        )}
         {features.length > 0 && (
           <Section title="Features on this page">
             <div className="flex flex-wrap gap-1.5">
@@ -212,7 +217,7 @@ function ChildBody({ child, architecture }) {
   return <p className="text-sm text-slate-300">Part of the recommended {categoryKey} stack.</p>
 }
 
-export default function NodeInspector({ selection, architecture, layout, onClose, onSelectChild }) {
+export default function NodeInspector({ selection, architecture, layout, onClose, onSelectChild, onViewUi, hasUi }) {
   const open = Boolean(selection)
   let title = ''
   let subtitle = ''
@@ -238,7 +243,7 @@ export default function NodeInspector({ selection, architecture, layout, onClose
         title = child.name
         subtitle = CATEGORY_BY_KEY[child.categoryKey]?.label ?? 'Node'
         color = category.color
-        body = <ChildBody child={child} architecture={architecture} />
+        body = <ChildBody child={child} architecture={architecture} onViewUi={onViewUi} hasUi={hasUi} />
         break
       }
     }

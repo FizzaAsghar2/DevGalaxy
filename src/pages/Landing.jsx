@@ -92,8 +92,8 @@ export default function Landing() {
     <div className="relative">
       {/* ---------------------------------------------------------------- hero */}
       <section ref={heroRef} className="relative flex min-h-[calc(100vh-4rem)] items-center overflow-hidden">
-        {/* The galaxy keeps the right half on wide screens so it never sits under the copy. */}
-        <div className="absolute inset-0 lg:left-[34%]">
+        {/* The galaxy owns the right half on wide screens, clipped so orbit labels never reach the copy. */}
+        <div className="absolute inset-0 overflow-hidden lg:left-1/2">
           {use3D && heroInView ? (
             <Suspense fallback={<HeroFallback animate={!prefersReduced} />}>
               <HeroScene tier={tier} reducedMotion={Boolean(prefersReduced)} />
@@ -111,7 +111,7 @@ export default function Landing() {
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-            className="max-w-2xl"
+            className="max-w-2xl lg:max-w-xl"
           >
             <span className="chip bg-white/[0.06]">
               <Sparkles className="h-3.5 w-3.5 text-violet-300" /> AI software architecture, visualised
