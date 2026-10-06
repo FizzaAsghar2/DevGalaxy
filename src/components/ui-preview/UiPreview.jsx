@@ -179,7 +179,7 @@ export default function UiPreview({ galaxy, spec, busy, pageId, onPageChange, on
         {demo && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[60] bg-black">
             <PrototypeFrame spec={spec} pageId={current?.id} onNavigate={onPageChange} device={typeof window !== 'undefined' && window.innerWidth < 768 ? 'mobile' : 'desktop'} />
-            <button type="button" onClick={() => setDemo(false)} className="glass-strong fixed bottom-4 left-4 z-[61] flex items-center gap-1.5 rounded-full px-3.5 py-2 text-xs text-white shadow-lg hover:bg-white/10">
+            <button type="button" onClick={() => setDemo(false)} className="glass-strong fixed bottom-20 left-4 z-[61] md:bottom-4 flex items-center gap-1.5 rounded-full px-3.5 py-2 text-xs text-white shadow-lg hover:bg-white/10">
               <ArrowLeft className="h-3.5 w-3.5" /> Back to DevGalaxy
             </button>
           </motion.div>
