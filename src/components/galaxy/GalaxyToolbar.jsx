@@ -35,7 +35,7 @@ function Breadcrumbs({ projectName, focus, onNavigate }) {
   )
 }
 
-export default function GalaxyToolbar({ projectName, focus, layout, onNavigate, onSelect, onPresent, right }) {
+export default function GalaxyToolbar({ projectName, focus, layout, onNavigate, onSelect, onPresent, right, hideSearch = false }) {
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState(false)
   const boxRef = useRef(null)
@@ -55,7 +55,7 @@ export default function GalaxyToolbar({ projectName, focus, layout, onNavigate, 
         <Breadcrumbs projectName={projectName} focus={focus} onNavigate={onNavigate} />
       </div>
 
-      <div ref={boxRef} className="relative hidden sm:block">
+      <div ref={boxRef} className={`relative hidden ${hideSearch ? '' : 'sm:block'}`}>
         <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
         <input
           value={query}
