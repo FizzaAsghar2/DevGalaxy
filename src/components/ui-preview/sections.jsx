@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
-  Bell, Calendar as CalendarIcon, Check, ChevronRight, Clock, Heart, ImagePlus, MapPin, MessageSquare, Mic, Search,
-  Send, SlidersHorizontal, Star, Trophy, Upload, User,
+  ArrowUpDown, Award, Bell, Calendar as CalendarIcon, Check, ChevronDown, ChevronLeft, ChevronRight, Clock, Heart, ImagePlus, Lock,
+  MapPin, MessageSquare, Mic, Quote, Search, Send, SlidersHorizontal, Star, Trophy, Upload, User,
 } from 'lucide-react'
 
 /**
@@ -34,12 +34,12 @@ export function Badge({ children }) {
 
 function Btn({ children, variant = 'primary', onClick, className = '' }) {
   const styles = {
-    primary: { background: 'var(--p-primary)', color: 'var(--p-on-primary)' },
+    primary: { background: 'var(--p-btn-bg)', color: 'var(--p-btn-fg)', border: 'var(--p-btn-border)' },
     ghost: { background: 'transparent', color: 'var(--p-text)', border: '1px solid var(--p-border)' },
     soft: { background: 'color-mix(in srgb, var(--p-primary) 12%, transparent)', color: 'var(--p-primary)' },
   }
   return (
-    <button type="button" onClick={onClick} className={`inline-flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-semibold transition hover:brightness-110 active:scale-[0.98] ${className}`} style={{ ...styles[variant], borderRadius: 'var(--p-radius-sm)' }}>
+    <button type="button" onClick={onClick} className={`inline-flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-semibold transition hover:brightness-110 active:scale-[0.98] ${className}`} style={{ ...styles[variant], borderRadius: 'var(--p-btn-radius)' }}>
       {children}
     </button>
   )
@@ -47,7 +47,7 @@ function Btn({ children, variant = 'primary', onClick, className = '' }) {
 
 function Card({ children, className = '', style }) {
   return (
-    <div className={className} style={{ background: 'var(--p-surface)', border: '1px solid var(--p-border)', borderRadius: 'var(--p-radius)', boxShadow: 'var(--p-shadow)', ...style }}>
+    <div className={className} style={{ background: 'var(--p-card-bg)', border: 'var(--p-card-border)', borderRadius: 'var(--p-radius)', boxShadow: 'var(--p-card-shadow)', backdropFilter: 'var(--p-card-blur)', ...style }}>
       {children}
     </div>
   )
@@ -135,7 +135,38 @@ function SearchBar({ section, query, onQuery }) {
   )
 }
 
-function Filters({ section, active, onToggle }) {
+const SORTS = ['Recommended', 'Price: low to high', 'Price: high to low', 'Top rated', 'Name A–Z']
+
+export function Dropdown({ label, icon: Icon = ChevronDown, options, value, onChange, align = 'left' }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef(null)
+  useEffect(() => {
+    if (!open) return undefined
+    const close = (e) => ref.current && !ref.current.contains(e.target) && setOpen(false)
+    document.addEventListener('mousedown', close)
+    return () => document.removeEventListener('mousedown', close)
+  }, [open])
+  return (
+    <div ref={ref} className="relative">
+      <button type="button" aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen((o) => !o)} className="flex items-center gap-1.5 px-3 py-1 text-xs font-medium" style={{ borderRadius: 999, border: '1px solid var(--p-border)', background: 'var(--p-surface)', color: 'var(--p-text)' }}>
+        {label}{value ? `: ${value}` : ''} <Icon className="h-3.5 w-3.5" />
+      </button>
+      {open && (
+        <ul role="listbox" className={`absolute z-20 mt-1 min-w-[180px] overflow-hidden py-1 text-xs shadow-xl ${align === 'right' ? 'right-0' : 'left-0'}`} style={{ background: 'var(--p-surface)', border: '1px solid var(--p-border)', borderRadius: 'var(--p-radius-sm)' }}>
+          {options.map((o) => (
+            <li key={o}>
+              <button type="button" role="option" aria-selected={o === value} onClick={() => { onChange(o); setOpen(false) }} className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left hover:brightness-95" style={{ color: o === value ? 'var(--p-primary)' : 'var(--p-text)', background: o === value ? 'color-mix(in srgb, var(--p-primary) 10%, transparent)' : 'transparent' }}>
+                {o}{o === value && <Check className="h-3.5 w-3.5" />}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+function Filters({ section, active, onToggle, sort, onSort }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
       <span className="flex items-center gap-1 text-xs" style={{ color: 'var(--p-muted)' }}><SlidersHorizontal className="h-3.5 w-3.5" /> Filter</span>
@@ -147,8 +178,22 @@ function Filters({ section, active, onToggle }) {
           </button>
         )
       })}
+      <div className="ml-auto"><Dropdown label="Sort" icon={ArrowUpDown} options={SORTS} value={sort} onChange={onSort} align="right" /></div>
     </div>
   )
+}
+
+function price(item) {
+  return Number(String(item.meta ?? '').replace(/[^0-9.]/g, '')) || 0
+}
+
+function refine(items, query, filter, sort) {
+  const out = items.filter((i) => matches(i, query, filter))
+  if (sort === 'Price: low to high') out.sort((a, b) => price(a) - price(b))
+  if (sort === 'Price: high to low') out.sort((a, b) => price(b) - price(a))
+  if (sort === 'Top rated') out.sort((a, b) => (Number(b.rating) || 0) - (Number(a.rating) || 0))
+  if (sort === 'Name A–Z') out.sort((a, b) => String(a.title).localeCompare(String(b.title)))
+  return out
 }
 
 function matches(item, query, filter) {
@@ -157,9 +202,32 @@ function matches(item, query, filter) {
   return `${item.title} ${item.subtitle ?? ''} ${item.meta ?? ''}`.toLowerCase().includes(query.toLowerCase())
 }
 
-function Cards({ section, query, filter, onAction }) {
+function Cards({ section, query, filter, sort, onAction }) {
   const [liked, setLiked] = useState({})
-  const items = section.items.filter((i) => matches(i, query, filter))
+  const items = refine(section.items, query, filter, sort)
+  if (section.variant === 'badges') {
+    return (
+      <div>
+        <Heading section={section} />
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {items.map((item, i) => {
+            const locked = /lock/i.test(item.status)
+            return (
+              <button key={item.title} type="button" onClick={() => onAction('Badge', item)} className="text-left transition hover:-translate-y-0.5">
+                <Card className="flex flex-col items-center gap-2 p-4 text-center" style={locked ? { opacity: 0.55 } : undefined}>
+                  <span className="flex h-14 w-14 items-center justify-center rounded-full text-white" style={{ background: locked ? 'var(--p-border)' : `linear-gradient(135deg, ${PALETTE[i % 3]}, ${PALETTE[(i + 1) % 3]})` }}>
+                    {locked ? <Lock className="h-6 w-6" style={{ color: 'var(--p-muted)' }} /> : <Award className="h-7 w-7" />}
+                  </span>
+                  <p className="text-sm font-bold" style={{ color: 'var(--p-text)' }}>{item.title}</p>
+                  <p className="text-[11px]" style={{ color: 'var(--p-muted)' }}>{item.subtitle}</p>
+                </Card>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
   if (section.variant === 'people') {
     return (
       <div>
@@ -199,7 +267,7 @@ function Cards({ section, query, filter, onAction }) {
             ) : null}
             <div className={`min-w-0 flex-1 ${list ? 'pr-2' : 'p-3'}`}>
               <div className="flex items-start justify-between gap-2">
-                <p className="truncate text-sm font-semibold" style={{ color: 'var(--p-text)' }}>{item.title}</p>
+                <button type="button" onClick={() => onAction('Open', item)} className="truncate text-left text-sm font-semibold hover:underline" style={{ color: 'var(--p-text)' }}>{item.title}</button>
                 {item.rating && <span className="flex shrink-0 items-center gap-0.5 text-[11px]" style={{ color: 'var(--p-text)' }}><Star className="h-3 w-3 fill-amber-400 text-amber-400" />{item.rating}</span>}
               </div>
               <p className="mt-0.5 line-clamp-2 text-xs" style={{ color: 'var(--p-muted)' }}>{item.subtitle}</p>
@@ -215,8 +283,8 @@ function Cards({ section, query, filter, onAction }) {
   )
 }
 
-function Table({ section, query, filter, onAction }) {
-  const items = section.items.filter((i) => matches(i, query, filter))
+function Table({ section, query, filter, sort, onAction }) {
+  const items = refine(section.items, query, filter, sort)
   const columns = section.columns.length ? section.columns : ['Name', 'Details', 'Status']
   return (
     <Card className="overflow-hidden">
@@ -441,8 +509,13 @@ function Kanban({ section }) {
   )
 }
 
-function Gallery({ section, onAction }) {
+function Gallery({ section, onAction, selection }) {
   const [active, setActive] = useState(0)
+  const title = selection?.title || section.title
+  const subtitle = selection?.subtitle || section.subtitle
+  const value = selection?.meta && /\$/.test(selection.meta) ? selection.meta : section.value
+  const [primary, secondary] = section.actions.length ? section.actions : ['Contact', 'Save']
+  const [saved, setSaved] = useState(false)
   return (
     <div className="grid gap-4 md:grid-cols-[1.4fr_1fr]">
       <div>
@@ -456,16 +529,18 @@ function Gallery({ section, onAction }) {
         </div>
       </div>
       <div>
-        <h1 className="p-display text-2xl font-bold" style={{ color: 'var(--p-text)' }}>{section.title}</h1>
-        <p className="mt-1 text-sm" style={{ color: 'var(--p-muted)' }}>{section.subtitle}</p>
-        {section.value && <p className="mt-3 text-xl font-bold" style={{ color: 'var(--p-primary)' }}>{section.value}</p>}
-        <div className="mt-4 flex gap-2"><Btn onClick={() => onAction('Contact')}>Contact</Btn><Btn variant="ghost" onClick={() => onAction('Save')}><Heart className="h-3.5 w-3.5" /> Save</Btn></div>
+        <h1 className="p-display text-2xl font-bold" style={{ color: 'var(--p-text)' }}>{title}</h1>
+        <p className="mt-1 text-sm" style={{ color: 'var(--p-muted)' }}>{subtitle}</p>
+        {(selection?.rating || section.items[0]?.rating) && <p className="mt-2 flex items-center gap-1 text-xs" style={{ color: 'var(--p-text)' }}><Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" /> {selection?.rating || section.items[0]?.rating} · 128 reviews</p>}
+        {section.tabs.length > 0 && <div className="mt-3 flex flex-wrap gap-1.5">{section.tabs.map((t) => <span key={t} className="px-2.5 py-1 text-[11px] font-medium" style={{ borderRadius: 999, background: 'color-mix(in srgb, var(--p-primary) 10%, transparent)', color: 'var(--p-primary)' }}>{t}</span>)}</div>}
+        {value && <p className="mt-3 text-xl font-bold" style={{ color: 'var(--p-primary)' }}>{value}</p>}
+        <div className="mt-4 flex gap-2"><Btn onClick={() => onAction(primary, selection ?? section.items[0])}>{primary}</Btn>{secondary && <Btn variant="ghost" onClick={() => setSaved((v) => !v)}><Heart className="h-3.5 w-3.5" fill={saved ? 'currentColor' : 'none'} /> {saved ? 'Saved' : secondary}</Btn>}</div>
       </div>
     </div>
   )
 }
 
-function Profile({ section }) {
+function Profile({ section, onAction }) {
   return (
     <Card className="overflow-hidden">
       <div className="h-24" style={{ background: 'linear-gradient(120deg, var(--p-primary), var(--p-secondary))' }} />
@@ -475,7 +550,7 @@ function Profile({ section }) {
           <h2 className="p-display text-lg font-bold" style={{ color: 'var(--p-text)' }}>{section.title}</h2>
           <p className="text-xs" style={{ color: 'var(--p-muted)' }}>{section.subtitle}</p>
         </div>
-        <Btn variant="ghost"><User className="h-3.5 w-3.5" /> Edit profile</Btn>
+        <Btn variant="ghost" onClick={() => onAction('Edit profile')}><User className="h-3.5 w-3.5" /> Edit profile</Btn>
       </div>
       {section.items.length > 0 && (
         <div className="grid grid-cols-3" style={{ borderTop: '1px solid var(--p-border)' }}>
@@ -491,36 +566,76 @@ function Profile({ section }) {
   )
 }
 
-function Field({ field }) {
+function Field({ field, value, onChange }) {
   const base = { background: 'var(--p-bg)', border: '1px solid var(--p-border)', borderRadius: 'var(--p-radius-sm)', color: 'var(--p-text)' }
-  if (field.type === 'textarea') return <textarea rows={3} className="w-full px-3 py-2 text-sm outline-none" style={base} placeholder={`Add ${field.label.toLowerCase()}…`} />
-  if (field.type === 'select') return <select className="w-full px-3 py-2 text-sm outline-none" style={base}>{(field.options?.length ? field.options : ['Option 1', 'Option 2']).map((o) => <option key={o}>{o}</option>)}</select>
-  if (field.type === 'file') return <div className="flex items-center gap-2 px-3 py-3 text-xs" style={{ ...base, borderStyle: 'dashed', color: 'var(--p-muted)' }}><ImagePlus className="h-4 w-4" /> Upload a file</div>
-  return <input type={['date', 'number'].includes(field.type) ? field.type : 'text'} className="w-full px-3 py-2 text-sm outline-none" style={base} placeholder={field.label} />
+  const bind = onChange ? { value: value ?? '', onChange: (e) => onChange(e.target.value) } : {}
+  if (field.type === 'textarea') return <textarea rows={3} className="w-full px-3 py-2 text-sm outline-none" style={base} placeholder={`Add ${field.label.toLowerCase()}…`} {...bind} />
+  if (field.type === 'select') {
+    const options = field.options?.length ? field.options : ['Standard', 'Premium']
+    return <select className="w-full px-3 py-2 text-sm outline-none" style={base} {...(onChange ? { value: value ?? options[0], onChange: (e) => onChange(e.target.value) } : {})}>{options.map((o) => <option key={o}>{o}</option>)}</select>
+  }
+  if (field.type === 'file') {
+    return (
+      <button type="button" onClick={() => onChange?.(value ? '' : 'photo-01.jpg')} className="flex w-full items-center gap-2 px-3 py-3 text-left text-xs" style={{ ...base, borderStyle: 'dashed', color: 'var(--p-muted)' }}>
+        <ImagePlus className="h-4 w-4" /> {value ? `${value} attached` : 'Upload a file'}
+      </button>
+    )
+  }
+  return <input type={['date', 'number'].includes(field.type) ? field.type : 'text'} className="w-full px-3 py-2 text-sm outline-none" style={base} placeholder={field.label} {...bind} />
 }
 
-function Form({ section, onAction }) {
+/**
+ * When the page has a progress stepper the form is split across its steps;
+ * the final step reviews the entered values before confirming.
+ */
+function Form({ section, onAction, step = 0, steps = 1, onStep }) {
+  const [values, setValues] = useState({})
+  const inputSteps = Math.max(1, steps > 1 ? steps - 1 : 1)
+  const perStep = Math.ceil(section.fields.length / inputSteps)
+  const reviewing = steps > 1 && step >= steps - 1
+  const fields = steps > 1 ? section.fields.slice(step * perStep, step * perStep + perStep) : section.fields
+  const submitLabel = steps > 1 && !reviewing ? 'Continue' : section.actions.at(-1) && section.actions.at(-1) !== 'Continue' ? section.actions.at(-1) : steps > 1 ? 'Confirm' : section.actions[0] || 'Submit'
+  const submit = (e) => {
+    e.preventDefault()
+    if (steps > 1 && !reviewing) return onStep(step + 1)
+    onAction(submitLabel, { title: section.title, subtitle: Object.entries(values).filter(([, v]) => v).map(([k, v]) => `${k}: ${v}`).join(' · ') })
+    setValues({})
+    onStep?.(0)
+  }
   return (
     <Card className="p-5">
       <Heading section={section} />
-      <form className="grid gap-3 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); onAction(section.actions[0] || 'Submit') }}>
-        {section.fields.map((f) => (
-          <label key={f.label} className={`block text-xs font-medium ${f.type === 'textarea' || f.type === 'file' ? 'sm:col-span-2' : ''}`} style={{ color: 'var(--p-muted)' }}>
-            <span className="mb-1 block">{f.label}</span>
-            <Field field={f} />
-          </label>
-        ))}
+      <form className="grid gap-3 sm:grid-cols-2" onSubmit={submit}>
+        {reviewing ? (
+          <dl className="space-y-2 text-sm sm:col-span-2">
+            {section.fields.map((f) => (
+              <div key={f.label} className="flex justify-between gap-3" style={{ borderBottom: '1px solid var(--p-border)', paddingBottom: 6 }}>
+                <dt style={{ color: 'var(--p-muted)' }}>{f.label}</dt>
+                <dd className="text-right font-medium" style={{ color: 'var(--p-text)' }}>{values[f.label] || (f.type === 'select' ? f.options?.[0] : '—')}</dd>
+              </div>
+            ))}
+          </dl>
+        ) : (
+          fields.map((f) => (
+            <label key={f.label} className={`block text-xs font-medium ${f.type === 'textarea' || f.type === 'file' ? 'sm:col-span-2' : ''}`} style={{ color: 'var(--p-muted)' }}>
+              <span className="mb-1 block">{f.label}</span>
+              <Field field={f} value={values[f.label]} onChange={(v) => setValues((s) => ({ ...s, [f.label]: v }))} />
+            </label>
+          ))
+        )}
         <div className="flex justify-end gap-2 sm:col-span-2">
-          <Btn variant="ghost">Cancel</Btn>
-          <button type="submit" className="px-3.5 py-2 text-xs font-semibold" style={{ background: 'var(--p-primary)', color: 'var(--p-on-primary)', borderRadius: 'var(--p-radius-sm)' }}>{section.actions[0] || 'Submit'}</button>
+          {steps > 1 && step > 0 ? <Btn variant="ghost" onClick={() => onStep(step - 1)}><ChevronLeft className="h-3.5 w-3.5" /> Back</Btn> : <Btn variant="ghost" onClick={() => setValues({})}>Clear</Btn>}
+          <button type="submit" className="px-3.5 py-2 text-xs font-semibold" style={{ background: 'var(--p-btn-bg)', color: 'var(--p-btn-fg)', border: 'var(--p-btn-border)', borderRadius: 'var(--p-btn-radius)' }}>{submitLabel}</button>
         </div>
       </form>
     </Card>
   )
 }
 
-function Stepper({ section }) {
-  const [step, setStep] = useState(0)
+function Stepper({ section, step: controlled, onStep }) {
+  const [own, setOwn] = useState(0)
+  const step = controlled ?? own
+  const setStep = onStep ?? setOwn
   const detailed = section.items.some((i) => i.subtitle)
   if (detailed) {
     return (
@@ -804,15 +919,18 @@ function Auth({ section, onAction }) {
 
 function Pricing({ section, onAction }) {
   return (
+    <div>
+    <Heading section={section} />
     <div className="grid gap-3 sm:grid-cols-3">
       {section.items.map((tier, i) => (
         <Card key={tier.title} className="p-5" style={i === 1 ? { outline: '2px solid var(--p-primary)' } : undefined}>
           <p className="text-sm font-semibold" style={{ color: 'var(--p-text)' }}>{tier.title}</p>
           <p className="p-display mt-2 text-2xl font-bold" style={{ color: 'var(--p-text)' }}>{tier.meta}</p>
           <p className="mt-1 text-xs" style={{ color: 'var(--p-muted)' }}>{tier.subtitle}</p>
-          <Btn className="mt-4 w-full" variant={i === 1 ? 'primary' : 'ghost'} onClick={() => onAction('Choose plan')}>Choose</Btn>
+          <Btn className="mt-4 w-full" variant={i === 1 ? 'primary' : 'ghost'} onClick={() => onAction(section.actions[0] || 'Choose plan', tier)}>{section.actions[0] || 'Choose'}</Btn>
         </Card>
       ))}
+    </div>
     </div>
   )
 }
@@ -833,21 +951,83 @@ function Faq({ section }) {
   )
 }
 
+function Testimonials({ section }) {
+  const [index, setIndex] = useState(0)
+  const items = section.items
+  if (!items.length) return null
+  return (
+    <div>
+      <Heading section={section} />
+      <div className="grid gap-3 md:grid-cols-3">
+        {items.map((item, i) => (
+          <Card key={item.title} className={`p-4 ${i === index ? '' : 'hidden md:block'}`}>
+            <Quote className="h-5 w-5" style={{ color: 'var(--p-primary)' }} />
+            <p className="mt-2 text-sm leading-relaxed" style={{ color: 'var(--p-text)' }}>{item.subtitle}</p>
+            <div className="mt-3 flex items-center gap-2">
+              <Avatar name={item.title} index={i} size={30} />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-xs font-semibold" style={{ color: 'var(--p-text)' }}>{item.title}</p>
+                <p className="truncate text-[10px]" style={{ color: 'var(--p-muted)' }}>{item.meta}</p>
+              </div>
+              {item.rating && <span className="flex items-center gap-0.5 text-[11px]" style={{ color: 'var(--p-text)' }}><Star className="h-3 w-3 fill-amber-400 text-amber-400" />{item.rating}</span>}
+            </div>
+          </Card>
+        ))}
+      </div>
+      {items.length > 1 && (
+        <div className="mt-2 flex justify-center gap-1.5 md:hidden">
+          {items.map((item, i) => <button key={item.title} type="button" aria-label={`Show review ${i + 1}`} onClick={() => setIndex(i)} className="h-2 rounded-full transition-all" style={{ width: i === index ? 18 : 8, background: i === index ? 'var(--p-primary)' : 'var(--p-border)' }} />)}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function Categories({ section, onAction }) {
+  return (
+    <div>
+      <Heading section={section} />
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+        {section.items.map((item, i) => (
+          <button key={item.title} type="button" onClick={() => onAction('Category', item)} className="text-left transition hover:-translate-y-0.5">
+            <Card className="h-full p-3">
+              <span className="block h-8 w-8" style={{ borderRadius: 'var(--p-radius-sm)', background: `linear-gradient(135deg, ${PALETTE[i % 3]}, color-mix(in srgb, ${PALETTE[(i + 1) % 3]} 60%, transparent))` }} />
+              <p className="mt-2 line-clamp-2 text-xs font-semibold" style={{ color: 'var(--p-text)' }}>{item.title}</p>
+              {item.meta && <p className="mt-0.5 text-[10px]" style={{ color: 'var(--p-muted)' }}>{item.meta}</p>}
+            </Card>
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 const RENDERERS = {
   hero: Hero, cards: Cards, table: Table, list: ListSection, stats: Stats, chart: Chart, calendar: CalendarSection,
   chat: Chat, timeline: Timeline, kanban: Kanban, gallery: Gallery, profile: Profile, form: Form, stepper: Stepper,
   summary: Summary, feed: Feed, progress: Progress, tabs: Tabs, leaderboard: Leaderboard, map: MapSection,
   upload: UploadSection, notifications: Notifications, cta: Cta, session: Session, auth: Auth, pricing: Pricing, faq: Faq,
+  testimonials: Testimonials, categories: Categories,
 }
 
-/** Renders a page's sections; search + filter sections drive the data sections that follow them. */
-export function PageSections({ page, onAction }) {
-  const [query, setQuery] = useState('')
+/**
+ * Renders a page's sections with shared page state: search/filter/sort drive
+ * the data sections, a progress stepper drives the form, and `selection`
+ * (the record opened from another page) fills the detail header.
+ */
+export function PageSections({ page, onAction, selection, initialQuery = '' }) {
+  const [query, setQuery] = useState(initialQuery)
   const [filter, setFilter] = useState('All')
+  const [sort, setSort] = useState(SORTS[0])
+  const [step, setStep] = useState(0)
+  const stepper = page.sections.find((s) => s.type === 'stepper' && s.variant === 'progress')
+  const steps = stepper ? stepper.items.length : 1
   return page.sections.map((section) => {
     if (section.type === 'search') return <SearchBar key={section.id} section={section} query={query} onQuery={setQuery} />
-    if (section.type === 'filters') return <Filters key={section.id} section={section} active={filter} onToggle={setFilter} />
+    if (section.type === 'filters') return <Filters key={section.id} section={section} active={filter} onToggle={setFilter} sort={sort} onSort={setSort} />
+    if (section === stepper) return <Stepper key={section.id} section={section} step={step} onStep={setStep} />
+    if (section.type === 'form') return <Form key={section.id} section={section} onAction={onAction} step={stepper ? step : 0} steps={steps} onStep={setStep} />
     const Component = RENDERERS[section.type] ?? ListSection
-    return <Component key={section.id} section={section} query={query} filter={filter} onAction={onAction} />
+    return <Component key={section.id} section={section} query={query} filter={filter} sort={sort} onAction={onAction} selection={selection} />
   })
 }

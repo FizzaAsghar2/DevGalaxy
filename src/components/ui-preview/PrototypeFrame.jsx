@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Bell, CheckCircle2, Menu, Search, X } from 'lucide-react'
+import { Bell, CheckCircle2, ChevronDown, LogOut, Menu, Search, Settings, Star, User, X } from 'lucide-react'
 import { PageSections } from './sections'
 
 const RADIUS = { none: ['0px', '0px'], small: ['6px', '4px'], medium: ['12px', '8px'], large: ['20px', '12px'], pill: ['24px', '999px'] }
@@ -22,6 +22,23 @@ function luminance(hex) {
   return 0.2126 * r + 0.7152 * g + 0.0722 * b
 }
 
+function buttonVars(d) {
+  const radius = d.buttonStyle === 'pill' ? '999px' : 'var(--p-radius-sm)'
+  if (d.buttonStyle === 'outline') return { '--p-btn-bg': 'transparent', '--p-btn-fg': d.primaryColor, '--p-btn-border': `1.5px solid ${d.primaryColor}`, '--p-btn-radius': radius }
+  if (d.buttonStyle === 'gradient') return { '--p-btn-bg': `linear-gradient(120deg, ${d.primaryColor}, ${d.secondaryColor})`, '--p-btn-fg': '#ffffff', '--p-btn-border': 'none', '--p-btn-radius': radius }
+  return { '--p-btn-bg': d.primaryColor, '--p-btn-fg': luminance(d.primaryColor) > 0.45 ? '#0f172a' : '#ffffff', '--p-btn-border': 'none', '--p-btn-radius': radius }
+}
+
+function cardVars(d, dark) {
+  const border = `1px solid ${dark ? 'rgba(255,255,255,0.09)' : 'rgba(15,23,42,0.09)'}`
+  if (d.cardStyle === 'elevated') return { '--p-card-bg': d.surfaceColor, '--p-card-border': dark ? border : '1px solid transparent', '--p-card-shadow': dark ? '0 10px 30px -12px rgba(0,0,0,0.6)' : '0 2px 4px rgba(15,23,42,0.04), 0 12px 32px -12px rgba(15,23,42,0.18)', '--p-card-blur': 'none' }
+  if (d.cardStyle === 'flat') return { '--p-card-bg': `color-mix(in srgb, ${d.textColor} 4%, ${d.surfaceColor})`, '--p-card-border': '1px solid transparent', '--p-card-shadow': 'none', '--p-card-blur': 'none' }
+  if (d.cardStyle === 'glass') return { '--p-card-bg': `color-mix(in srgb, ${d.surfaceColor} 72%, transparent)`, '--p-card-border': `1px solid color-mix(in srgb, ${d.primaryColor} 25%, transparent)`, '--p-card-shadow': `0 0 0 1px rgba(255,255,255,0.02) inset, 0 12px 40px -18px color-mix(in srgb, ${d.primaryColor} 45%, transparent)`, '--p-card-blur': 'blur(10px)' }
+  return { '--p-card-bg': d.surfaceColor, '--p-card-border': border, '--p-card-shadow': dark ? '0 1px 0 rgba(255,255,255,0.03) inset' : '0 1px 2px rgba(15,23,42,0.05)', '--p-card-blur': 'none' }
+}
+
+const FLOW = /book|rent|reserv|checkout|order|request|apply|enrol|register for/i
+
 export function designVars(d) {
   const [radius, radiusSm] = RADIUS[d.borderRadius] ?? RADIUS.medium
   const dark = d.theme === 'dark'
@@ -42,6 +59,8 @@ export function designVars(d) {
     '--p-font': body,
     '--p-display': d.fontStyle === 'serif' ? FONTS.serif : d.fontStyle === 'mono' ? FONTS.mono : d.fontStyle === 'rounded' ? FONTS.rounded : FONTS.display,
     '--p-gap': GAP[d.density] ?? GAP.comfortable,
+    ...buttonVars(d),
+    ...cardVars(d, dark),
     colorScheme: dark ? 'dark' : 'light',
   }
 }
@@ -66,6 +85,86 @@ function Brand({ name }) {
   )
 }
 
+function Footer({ d, pages, onNavigate }) {
+  const columns = [pages.slice(0, 4), pages.slice(4, 8)].filter((c) => c.length)
+  return (
+    <footer className="mt-8 px-6 py-8" style={{ background: 'var(--p-surface)', borderTop: '1px solid var(--p-border)' }}>
+      <div className="mx-auto flex max-w-6xl flex-wrap justify-between gap-8">
+        <div className="max-w-xs">
+          <Brand name={d.appName} />
+          <p className="mt-2 text-xs" style={{ color: 'var(--p-muted)' }}>{d.tagline || `${d.appName} — built with care for the people who use it every day.`}</p>
+        </div>
+        {columns.map((col, i) => (
+          <div key={i} className="flex flex-col gap-1.5 text-xs">
+            <p className="font-semibold" style={{ color: 'var(--p-text)' }}>{i === 0 ? 'Product' : 'More'}</p>
+            {col.map((p) => <button key={p.id} type="button" onClick={() => onNavigate(p.id)} className="text-left hover:underline" style={{ color: 'var(--p-muted)' }}>{p.name}</button>)}
+          </div>
+        ))}
+        <div className="flex flex-col gap-1.5 text-xs" style={{ color: 'var(--p-muted)' }}>
+          <p className="font-semibold" style={{ color: 'var(--p-text)' }}>Company</p>
+          <span>About</span><span>Help centre</span><span>Privacy</span>
+        </div>
+      </div>
+      <p className="mx-auto mt-6 max-w-6xl text-[10px]" style={{ color: 'var(--p-muted)' }}>© 2026 {d.appName}. All rights reserved.</p>
+    </footer>
+  )
+}
+
+function HeaderSearch({ pages, records, onNavigate, onOpen }) {
+  const [q, setQ] = useState('')
+  const [open, setOpen] = useState(false)
+  const query = q.trim().toLowerCase()
+  const pageHits = query ? pages.filter((p) => p.name.toLowerCase().includes(query)).slice(0, 4) : pages.slice(0, 4)
+  const recordHits = query ? records.filter((r) => String(r.title).toLowerCase().includes(query)).slice(0, 4) : []
+  return (
+    <div className="relative">
+      <div className="flex items-center gap-2 px-2.5 py-1.5 text-xs" style={{ border: '1px solid var(--p-border)', borderRadius: 'var(--p-radius-sm)', color: 'var(--p-muted)' }}>
+        <Search className="h-3.5 w-3.5" />
+        <input value={q} onChange={(e) => setQ(e.target.value)} onFocus={() => setOpen(true)} onBlur={() => setTimeout(() => setOpen(false), 150)} placeholder="Search" aria-label="Search the app" className="w-28 bg-transparent outline-none lg:w-40" style={{ color: 'var(--p-text)' }} />
+      </div>
+      {open && (pageHits.length > 0 || recordHits.length > 0) && (
+        <div className="absolute right-0 z-30 mt-1 w-64 py-1 text-xs shadow-xl" style={{ background: 'var(--p-surface)', border: '1px solid var(--p-border)', borderRadius: 'var(--p-radius-sm)' }}>
+          {recordHits.map((r) => (
+            <button key={r.title} type="button" onMouseDown={() => { onOpen(r); setQ('') }} className="flex w-full items-center gap-2 px-3 py-2 text-left hover:brightness-95" style={{ color: 'var(--p-text)' }}>
+              <Star className="h-3.5 w-3.5" style={{ color: 'var(--p-accent)' }} /> <span className="truncate">{r.title}</span>
+            </button>
+          ))}
+          <p className="px-3 pb-1 pt-2 text-[10px] uppercase tracking-wide" style={{ color: 'var(--p-muted)' }}>Pages</p>
+          {pageHits.map((p) => (
+            <button key={p.id} type="button" onMouseDown={() => { onNavigate(p.id); setQ('') }} className="block w-full px-3 py-2 text-left hover:brightness-95" style={{ color: 'var(--p-text)' }}>{p.name}</button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function AccountMenu({ pages, onNavigate, onSignOut }) {
+  const [open, setOpen] = useState(false)
+  const links = pages.filter((p) => /profile|account|setting|dashboard/i.test(p.name)).slice(0, 3)
+  return (
+    <div className="relative">
+      <button type="button" onClick={() => setOpen((o) => !o)} aria-haspopup="menu" aria-expanded={open} aria-label="Account menu" className="flex items-center gap-1">
+        <span className="flex h-7 w-7 items-center justify-center rounded-full text-[10px] font-bold text-white" style={{ background: 'linear-gradient(135deg, var(--p-primary), var(--p-accent))' }}>AO</span>
+        <ChevronDown className="h-3.5 w-3.5" style={{ color: 'var(--p-muted)' }} />
+      </button>
+      {open && (
+        <div role="menu" className="absolute right-0 z-30 mt-2 w-48 py-1 text-xs shadow-xl" style={{ background: 'var(--p-surface)', border: '1px solid var(--p-border)', borderRadius: 'var(--p-radius-sm)' }}>
+          <p className="px-3 py-2 font-semibold" style={{ color: 'var(--p-text)' }}>Amara Okafor<span className="block font-normal" style={{ color: 'var(--p-muted)' }}>amara@example.com</span></p>
+          {links.map((p) => (
+            <button key={p.id} type="button" role="menuitem" onClick={() => { setOpen(false); onNavigate(p.id) }} className="flex w-full items-center gap-2 px-3 py-2 text-left hover:brightness-95" style={{ color: 'var(--p-text)' }}>
+              {/setting/i.test(p.name) ? <Settings className="h-3.5 w-3.5" /> : <User className="h-3.5 w-3.5" />} {p.name}
+            </button>
+          ))}
+          <button type="button" role="menuitem" onClick={() => { setOpen(false); onSignOut() }} className="flex w-full items-center gap-2 px-3 py-2 text-left hover:brightness-95" style={{ color: 'var(--p-text)', borderTop: '1px solid var(--p-border)' }}>
+            <LogOut className="h-3.5 w-3.5" /> Sign out
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 /**
  * Renders a generated UI spec as a working multi-page prototype. `device`
  * narrows the frame; below `md` the navigation collapses to a drawer + bottom bar.
@@ -75,12 +174,21 @@ export default function PrototypeFrame({ spec, pageId, onNavigate, device = 'des
   const page = spec.uiPages.find((p) => p.id === pageId) ?? spec.uiPages[0]
   const [drawer, setDrawer] = useState(false)
   const [modal, setModal] = useState(null)
+  const [selected, setSelected] = useState(null)
+  const [signedIn, setSignedIn] = useState(true)
   const scrollRef = useRef(null)
   const compact = device !== 'desktop'
   const vars = useMemo(() => designVars(d), [d])
-  const navPages = spec.uiPages.filter((p) => !/sign in|login|sign up|register/i.test(p.name))
-  const authPage = spec.uiPages.find((p) => /sign in|login/i.test(p.name))
+  const navPages = spec.uiPages.filter((p) => !/\b(sign in|login|log in|sign up|register)\b/i.test(p.name))
+  const authPage = spec.uiPages.find((p) => /\b(sign in|login|log in)\b/i.test(p.name))
   const sidebar = d.navigation === 'sidebar' && !compact
+  const detailPage = spec.uiPages.find((p) => p.layout === 'detail') ?? spec.uiPages.find((p) => /detail|profile$/i.test(p.name) && !/^(my )?profile$/i.test(p.name))
+  const flowPage = spec.uiPages.find((p) => FLOW.test(p.name) && p.layout === 'focus') ?? spec.uiPages.find((p) => FLOW.test(p.name))
+  const browsePage = spec.uiPages.find((p) => p.layout === 'browse')
+  const records = useMemo(() => {
+    const seen = new Set()
+    return spec.uiPages.flatMap((p) => p.sections.filter((s) => ['cards', 'table', 'list'].includes(s.type)).flatMap((s) => s.items)).filter((r) => r.title && !seen.has(r.title) && seen.add(r.title))
+  }, [spec])
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: 0 })
@@ -89,13 +197,32 @@ export default function PrototypeFrame({ spec, pageId, onNavigate, device = 'des
 
   if (!page) return null
 
+  const go = (id, item) => {
+    if (item) setSelected(item)
+    onNavigate(id)
+  }
+
+  const openRecord = (item) => {
+    if (detailPage && page.id !== detailPage.id) return go(detailPage.id, item)
+    setModal({ kind: 'detail', label: item.title, item })
+  }
+
   const onAction = (label, item) => {
-    const target = spec.uiPages.find((p) => p.name.toLowerCase() === String(label).toLowerCase())
-    if (target) return onNavigate(target.id)
-    if (/sign in|create account|log in/i.test(label) && authPage && page.id !== authPage.id) return onNavigate(authPage.id)
-    const detail = /open|view|book|rent|contact/i.test(label) && spec.uiPages.find((p) => /detail/i.test(p.name))
-    if (detail && item && page.id !== detail.id) return onNavigate(detail.id)
-    setModal({ label, item })
+    const text = String(label)
+    const target = spec.uiPages.find((p) => p.name.toLowerCase() === text.toLowerCase() || text.toLowerCase() === `browse ${p.name.toLowerCase()}`)
+    if (target) return go(target.id, item)
+    if (/sign in|create account|log in/i.test(text)) {
+      setSignedIn(true)
+      if (authPage && page.id === authPage.id) return go(navPages[0]?.id ?? page.id)
+      if (authPage) return go(authPage.id)
+    }
+    if (/^(open|view|details?)$/i.test(text) && item) return openRecord(item)
+    if (/^category$/i.test(text) && browsePage) return go(browsePage.id)
+    if (/^(get started|explore|start)/i.test(text) && browsePage && page.id !== browsePage.id) return go(browsePage.id)
+    if (FLOW.test(text) && flowPage && page.id !== flowPage.id) return go(flowPage.id, item?.title ? item : selected)
+    if (FLOW.test(text) && !flowPage && item && detailPage && page.id !== detailPage.id) return go(detailPage.id, item)
+    if (item?.title && !item.subtitle?.includes(':') && /badge|open/i.test(text)) return setModal({ kind: 'detail', label: item.title, item })
+    setModal({ kind: 'done', label: text, item })
   }
 
   const navLink = (p, extra = '') => (
@@ -121,16 +248,14 @@ export default function PrototypeFrame({ spec, pageId, onNavigate, device = 'des
           {!sidebar && !compact && <nav className="ml-4 flex min-w-0 gap-1 overflow-x-auto">{navPages.slice(0, 7).map((p) => navLink(p))}</nav>}
           {sidebar && <p className="p-display text-sm font-semibold">{page.name}</p>}
           <div className="ml-auto flex items-center gap-2">
-            {!compact && (
-              <div className="flex items-center gap-2 px-2.5 py-1.5 text-xs" style={{ border: '1px solid var(--p-border)', borderRadius: 'var(--p-radius-sm)', color: 'var(--p-muted)' }}>
-                <Search className="h-3.5 w-3.5" /> Search
-              </div>
-            )}
-            <button type="button" onClick={() => setModal({ label: 'Notifications' })} aria-label="Notifications" className="relative p-1.5" style={{ color: 'var(--p-muted)' }}>
+            {!compact && <HeaderSearch pages={navPages} records={records} onNavigate={(id) => go(id)} onOpen={openRecord} />}
+            <button type="button" onClick={() => setModal({ kind: 'done', label: 'Notifications', item: { title: `3 new updates in ${d.appName}` } })} aria-label="Notifications" className="relative p-1.5" style={{ color: 'var(--p-muted)' }}>
               <Bell className="h-4 w-4" /><span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full" style={{ background: 'var(--p-accent)' }} />
             </button>
-            {authPage && page.id !== authPage.id && !compact && (
-              <button type="button" onClick={() => onNavigate(authPage.id)} className="px-3 py-1.5 text-xs font-semibold" style={{ background: 'var(--p-primary)', color: 'var(--p-on-primary)', borderRadius: 'var(--p-radius-sm)' }}>Sign in</button>
+            {signedIn ? (
+              <AccountMenu pages={navPages} onNavigate={(id) => go(id)} onSignOut={() => { setSignedIn(false); if (authPage) go(authPage.id) }} />
+            ) : (
+              authPage && page.id !== authPage.id && <button type="button" onClick={() => go(authPage.id)} className="px-3 py-1.5 text-xs font-semibold" style={{ background: 'var(--p-btn-bg)', color: 'var(--p-btn-fg)', border: 'var(--p-btn-border)', borderRadius: 'var(--p-btn-radius)' }}>Sign in</button>
             )}
           </div>
         </header>
@@ -144,9 +269,10 @@ export default function PrototypeFrame({ spec, pageId, onNavigate, device = 'des
                   {page.purpose && <p className="mt-0.5 text-xs" style={{ color: 'var(--p-muted)' }}>{page.purpose}</p>}
                 </div>
               )}
-              <PageSections key={page.id} page={page} onAction={onAction} />
+              <PageSections key={page.id} page={page} onAction={onAction} selection={page.id === detailPage?.id || page.id === flowPage?.id ? selected : null} />
             </motion.div>
           </AnimatePresence>
+          {!sidebar && page.layout !== 'centered' && <Footer d={d} pages={navPages} onNavigate={(id) => go(id)} />}
         </main>
 
         {compact && (
@@ -174,12 +300,30 @@ export default function PrototypeFrame({ spec, pageId, onNavigate, device = 'des
         {modal && (
           <motion.div className="absolute inset-0 z-30 flex items-center justify-center bg-black/40 p-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setModal(null)}>
             <motion.div initial={{ scale: 0.96, y: 8 }} animate={{ scale: 1, y: 0 }} className="w-full max-w-sm p-5" style={{ background: 'var(--p-surface)', borderRadius: 'var(--p-radius)', border: '1px solid var(--p-border)' }} onClick={(e) => e.stopPropagation()} role="dialog" aria-label={modal.label}>
-              <CheckCircle2 className="h-8 w-8" style={{ color: 'var(--p-primary)' }} />
-              <h3 className="p-display mt-3 text-base font-bold">{modal.label}</h3>
-              <p className="mt-1 text-sm" style={{ color: 'var(--p-muted)' }}>
-                {modal.item?.title ? `${modal.item.title} — ` : ''}This is a prototype interaction. In the real app this step would continue the “{modal.label}” flow.
-              </p>
-              <button type="button" onClick={() => setModal(null)} className="mt-4 w-full px-3 py-2 text-xs font-semibold" style={{ background: 'var(--p-primary)', color: 'var(--p-on-primary)', borderRadius: 'var(--p-radius-sm)' }}>Got it</button>
+              {modal.kind === 'detail' ? (
+                <>
+                  <div className="h-24" style={{ borderRadius: 'var(--p-radius-sm)', background: 'linear-gradient(135deg, var(--p-primary), var(--p-secondary))' }} />
+                  <h3 className="p-display mt-3 text-base font-bold">{modal.item.title}</h3>
+                  {modal.item.subtitle && <p className="mt-1 text-sm" style={{ color: 'var(--p-muted)' }}>{modal.item.subtitle}</p>}
+                  <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                    {[modal.item.status, modal.item.meta, modal.item.rating && `★ ${modal.item.rating}`].filter(Boolean).map((v) => <span key={v} className="px-2 py-1" style={{ borderRadius: 999, background: 'color-mix(in srgb, var(--p-primary) 12%, transparent)', color: 'var(--p-primary)' }}>{v}</span>)}
+                  </div>
+                  <div className="mt-4 flex gap-2">
+                    {flowPage && <button type="button" onClick={() => { setModal(null); go(flowPage.id, modal.item) }} className="flex-1 px-3 py-2 text-xs font-semibold" style={{ background: 'var(--p-btn-bg)', color: 'var(--p-btn-fg)', border: 'var(--p-btn-border)', borderRadius: 'var(--p-btn-radius)' }}>{flowPage.name}</button>}
+                    <button type="button" onClick={() => setModal(null)} className="flex-1 px-3 py-2 text-xs font-semibold" style={{ border: '1px solid var(--p-border)', borderRadius: 'var(--p-btn-radius)' }}>Close</button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="h-8 w-8" style={{ color: 'var(--p-primary)' }} />
+                  <h3 className="p-display mt-3 text-base font-bold">{/confirm|submit|pay|send|save|create|post|request|book|rent/i.test(modal.label) ? `${modal.label} — done!` : modal.label}</h3>
+                  <p className="mt-1 text-sm" style={{ color: 'var(--p-muted)' }}>
+                    {modal.item?.subtitle && modal.item.subtitle.includes(':') ? modal.item.subtitle : modal.item?.title ? modal.item.title : `${d.appName} received your request.`}
+                  </p>
+                  <p className="mt-3 text-[10px]" style={{ color: 'var(--p-muted)' }}>Demo only — nothing was saved or charged.</p>
+                  <button type="button" onClick={() => setModal(null)} className="mt-4 w-full px-3 py-2 text-xs font-semibold" style={{ background: 'var(--p-btn-bg)', color: 'var(--p-btn-fg)', border: 'var(--p-btn-border)', borderRadius: 'var(--p-btn-radius)' }}>Continue</button>
+                </>
+              )}
             </motion.div>
           </motion.div>
         )}

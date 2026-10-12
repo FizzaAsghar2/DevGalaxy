@@ -26,6 +26,8 @@ const UiPreview = lazy(() => import('../components/ui-preview/UiPreview'))
 
 const ALL_CATEGORY_KEYS = CATEGORIES.map((category) => category.key)
 
+const UI_SEQUENCE_MS = 3800
+
 export default function Workspace({ demo = false }) {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -146,7 +148,9 @@ export default function Workspace({ demo = false }) {
       if (!demo && !accountApi.ensure(action)) return false
       setUiBusy(true)
       try {
+        const started = Date.now()
         const result = await requestUi({ mode, galaxy, current: uiSpec, getToken, offlineOnly: demo || !isSignedIn, ...options })
+        if (mode === 'generate') await new Promise((r) => setTimeout(r, Math.max(0, UI_SEQUENCE_MS - (Date.now() - started))))
         setUiSpec(result.ui)
         if (!demo) {
           await service.saveUi(galaxy.id, result.ui)

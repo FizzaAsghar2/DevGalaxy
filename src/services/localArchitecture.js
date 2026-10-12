@@ -85,7 +85,14 @@ export function generateLocalArchitecture(idea, { appType = 'SaaS', complexity =
   const isMobile = /mobile/i.test(appType)
 
   const providerActor = marketplace && analysis.actors.length ? analysis.actors.at(-1) : null
+  const lowerIdea = String(idea ?? '').toLowerCase()
+  const position = (word) => {
+    const at = lowerIdea.indexOf(word)
+    return at < 0 ? Infinity : at
+  }
+  const providerFirst = providerActor && analysis.entities[0] && position(providerActor) < position(analysis.entities[0].name)
   const primary =
+    (providerFirst ? providerActor : null) ??
     analysis.entities[0]?.compound ??
     providerActor ??
     analysis.actions.find((a) => a.record !== 'search' && a.record !== 'record')?.record ??

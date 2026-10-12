@@ -25,6 +25,20 @@ const PROFILES = {
   minimal: { style: 'Minimal', theme: 'light', hue: [210, 230], sat: 12, radius: 'small', font: 'sans', nav: 'topbar', density: 'spacious', reason: 'Monochrome surfaces and restraint keep attention on content.' },
 }
 
+const PROFILE_EXTRAS = {
+  playful: { button: 'pill', card: 'elevated', type: 'Rounded friendly headings, large readable body' },
+  energetic: { button: 'gradient', card: 'glass', type: 'Bold geometric display, tight tracking' },
+  elegant: { button: 'outline', card: 'flat', type: 'Serif editorial headlines, airy sans body' },
+  calm: { button: 'pill', card: 'elevated', type: 'Soft humanist sans, generous line height' },
+  technical: { button: 'solid', card: 'bordered', type: 'Monospace data, compact sans labels' },
+  trustworthy: { button: 'solid', card: 'bordered', type: 'Neutral sans, tabular figures for numbers' },
+  professional: { button: 'solid', card: 'bordered', type: 'Neutral sans, clear hierarchy' },
+  friendly: { button: 'pill', card: 'elevated', type: 'Modern sans headings, image-first cards' },
+  modern: { button: 'solid', card: 'elevated', type: 'Geometric display headings, Inter body' },
+  futuristic: { button: 'gradient', card: 'glass', type: 'Wide display headings, glowing accents' },
+  minimal: { button: 'outline', card: 'flat', type: 'Light sans, lots of whitespace' },
+}
+
 const STYLE_TO_PROFILE = { modern: 'modern', minimal: 'minimal', professional: 'professional', playful: 'playful', futuristic: 'futuristic' }
 
 const PEOPLE = ['Amara Okafor', 'Liam Chen', 'Sofia Rossi', 'Noah Patel', 'Zara Ahmed', 'Mateo García', 'Hana Suzuki', 'Ethan Brooks', 'Fatima Khan', 'Lucas Silva', 'Priya Nair', 'Omar Haddad']
@@ -81,6 +95,7 @@ function hslToHex(h, s, l) {
 export function buildDesign({ analysis, architecture, style = 'Auto', theme = 'Auto', variant = 0 }) {
   const key = STYLE_TO_PROFILE[String(style).toLowerCase()] ?? analysis.tone
   const profile = PROFILES[key] ?? PROFILES.modern
+  const extras = PROFILE_EXTRAS[key] ?? PROFILE_EXTRAS.modern
   const random = rng(analysis.seed + variant * 7919)
   const [h1, h2] = profile.hue
   const span = h2 >= h1 ? h2 - h1 : h2 + 360 - h1
@@ -105,6 +120,9 @@ export function buildDesign({ analysis, architecture, style = 'Auto', theme = 'A
     navigation: navFlip ? (profile.nav === 'sidebar' ? 'topbar' : 'sidebar') : profile.nav,
     density: profile.density,
     iconStyle: key === 'playful' ? 'filled' : 'outline',
+    buttonStyle: extras.button,
+    cardStyle: variant % 3 === 2 ? (extras.card === 'bordered' ? 'elevated' : 'bordered') : extras.card,
+    typography: extras.type,
     designReasoning: profile.reason,
   }
 }
@@ -146,7 +164,7 @@ function makeContext(architecture, idea) {
     tag: titleCase((architecture.features?.[i % Math.max(1, architecture.features.length)]?.name ?? 'Featured').split(' ')[0]),
   }))
 
-  return { analysis, architecture, E, Es, records, statuses, money, rental, roles, random, tables, primaryTable }
+  return { analysis, traits: analysis.traits, architecture, E, Es, records, statuses, money, rental, roles, random, tables, primaryTable }
 }
 
 function statsFor(ctx) {
@@ -244,8 +262,63 @@ function formFor(ctx, pageName) {
       label: titleCase(f),
       type: /date|_at$|_on$/.test(f) ? 'date' : /price|amount|rate|total|size|capacity|points/.test(f) ? 'number' : /description|body|notes|summary/.test(f) ? 'textarea' : 'text',
     }))
+  if (/book|reserve|rent|order|request|checkout/i.test(pageName)) {
+    const have = new Set(fields.map((f) => f.label.toLowerCase()))
+    const extra = [
+      ctx.traits.has('scheduling') || ctx.money ? { label: 'Date', type: 'date' } : null,
+      ctx.traits.has('location') || ctx.money ? { label: 'Location', type: 'text' } : null,
+      ctx.money ? { label: 'Package', type: 'select', options: ['Essential', 'Standard', 'Premium'] } : null,
+    ].filter((f) => f && !have.has(f.label.toLowerCase()))
+    fields.splice(0, 0, ...extra)
+  }
   if (fields.length < 3) fields.push({ label: 'Details', type: 'textarea' }, { label: 'Photos', type: 'file' })
   return { type: 'form', title: pageName, subtitle: `Fill in the ${ctx.E.toLowerCase()} details`, fields, actions: ['Continue'] }
+}
+
+const QUOTES = [
+  (ctx) => `Found the right ${ctx.E.toLowerCase()} in minutes — the whole process felt effortless.`,
+  (ctx) => `${ctx.architecture.projectName} replaced three spreadsheets and a group chat for us.`,
+  (ctx) => `Clear, fast and reliable. I recommend it to every ${(ctx.roles[0] ?? 'member').toLowerCase()} I know.`,
+]
+
+function testimonialsFor(ctx, title = 'Loved by our community') {
+  return {
+    type: 'testimonials',
+    title,
+    items: QUOTES.map((quote, i) => ({
+      title: PEOPLE[(i + 6) % PEOPLE.length],
+      subtitle: quote(ctx),
+      meta: `${ctx.roles[i % Math.max(1, ctx.roles.length)] ?? 'Member'} · ${PLACES[(i + 4) % PLACES.length]}`,
+      rating: (4.7 + i * 0.1).toFixed(1),
+    })),
+  }
+}
+
+function categoriesFor(ctx) {
+  const names = [
+    ...(ctx.architecture.features ?? []).map((f) => f.name),
+    ...ctx.tables.filter((t) => t !== ctx.primaryTable && t.name !== 'users').map((t) => titleCase(t.name.replace(/_/g, ' '))),
+  ]
+  return {
+    type: 'categories',
+    title: 'Explore by category',
+    items: [...new Set(names)].slice(0, 6).map((title, i) => ({ title, meta: `${12 + ((i * 37) % 180)} ${ctx.Es.toLowerCase()}` })),
+  }
+}
+
+function packagesFor(ctx, record) {
+  const base = Number(String(record.meta).replace(/[^0-9.]/g, '')) || 120
+  const unit = ctx.rental ? '/day' : ''
+  return {
+    type: 'pricing',
+    title: 'Packages',
+    items: [
+      { title: 'Essential', meta: `$${Math.round(base * 0.7)}${unit}`, subtitle: `Core ${ctx.E.toLowerCase()} package for smaller needs` },
+      { title: 'Standard', meta: `$${Math.round(base)}${unit}`, subtitle: 'Most popular — everything most people need' },
+      { title: 'Premium', meta: `$${Math.round(base * 1.8)}${unit}`, subtitle: 'Extended time, priority support and extras' },
+    ],
+    actions: [ctx.rental ? 'Rent now' : 'Book now'],
+  }
 }
 
 function sectionsFor(page, ctx, variant) {
@@ -254,7 +327,7 @@ function sectionsFor(page, ctx, variant) {
   const traits = analysis.traits
   const lower = n.toLowerCase()
 
-  if (/sign in|login|sign up|register/.test(lower)) return { layout: 'centered', sections: [{ type: 'auth', title: `Welcome to ${ctx.architecture.projectName}`, subtitle: 'Sign in to continue', actions: ['Sign in', 'Create account'] }] }
+  if (/\b(sign in|login|log in|sign up|register)\b/.test(lower)) return { layout: 'centered', sections: [{ type: 'auth', title: `Welcome to ${ctx.architecture.projectName}`, subtitle: 'Sign in to continue', actions: ['Sign in', 'Create account'] }] }
   if (/^home$|landing/.test(lower)) {
     const hero = {
       type: 'hero',
@@ -266,13 +339,26 @@ function sectionsFor(page, ctx, variant) {
     }
     const sections = [hero]
     if (traits.has('location') || traits.has('marketplace')) sections.push({ type: 'search', placeholder: `Search ${Es.toLowerCase()} near you`, fields: [{ label: 'Location', type: 'text' }, { label: 'Date', type: 'date' }] })
+    if ((ctx.architecture.features ?? []).length >= 3) sections.push(categoriesFor(ctx))
     sections.push({ ...cardsFor(ctx), title: `Featured ${Es.toLowerCase()}`, items: records.slice(0, variant % 2 ? 3 : 4) })
     sections.push({ type: 'stepper', title: 'How it works', items: (ctx.architecture.features ?? []).slice(0, 3).map((f) => ({ title: f.name, subtitle: f.description })) })
+    if (!['technical', 'trustworthy'].includes(analysis.tone)) sections.push(testimonialsFor(ctx))
     sections.push({ type: 'cta', title: `Ready to get started?`, subtitle: `Join ${ctx.architecture.projectName} today.`, actions: ['Create free account'] })
     return { layout: 'landing', sections }
   }
+  if (/achievement|badge|reward|trophies|trophy/.test(lower)) {
+    const names = ['First Steps', '7-Day Streak', 'Perfect Score', 'Night Owl', 'Speed Runner', 'Helping Hand', 'Explorer', 'Champion']
+    return {
+      layout: 'stack',
+      sections: [
+        { type: 'stats', items: [{ label: 'Badges', value: '5 / 8', change: '+1 this week' }, { label: 'XP', value: '2,340', change: 'Level 7' }, { label: 'Streak', value: '6 days', change: 'Best 14' }] },
+        { type: 'cards', variant: 'badges', title: 'Your badges', items: names.map((title, i) => ({ title, subtitle: i < 5 ? `Earned ${DAYS[i]}` : `${30 + i * 8}% there`, status: i < 5 ? 'Unlocked' : 'Locked' })) },
+        { type: 'progress', title: 'Next rewards', items: names.slice(5).map((title, i) => ({ title, value: 40 + i * 20 })) },
+      ],
+    }
+  }
   if (/leaderboard|ranking/.test(lower)) return { layout: 'stack', sections: [{ type: 'leaderboard', title: 'This week', items: PEOPLE.slice(0, 6).map((name, i) => ({ title: name, value: 1200 - i * 137, meta: `${7 - i} day streak` })) }] }
-  if (/\b(live|play|session|practice|start|room)\b/.test(lower) && !/detail|^new |history/.test(lower) && (traits.has('ai') || traits.has('realtime') || traits.has('gamified') || traits.has('learning'))) {
+  if (/\b(live|play|session|practice|start|room|challenge)\b/.test(lower) && !/detail|^new |history/.test(lower) && (traits.has('ai') || traits.has('realtime') || traits.has('gamified') || traits.has('learning'))) {
     const quiz = traits.has('gamified')
     return {
       layout: 'focus',
@@ -328,31 +414,49 @@ function sectionsFor(page, ctx, variant) {
         board
           ? { type: 'kanban', title: `${Es} board`, items: ctx.statuses.slice(0, 3).map((s, i) => ({ title: s, cards: records.slice(i * 2, i * 2 + 2).map((r) => r.title) })) }
           : { type: 'chart', variant: variant % 2 ? 'bar' : 'line', title: 'Activity this week', items: chartItems(ctx) },
-        traits.has('security') ? { type: 'timeline', title: 'Latest response actions', items: records.slice(0, 4).map((r, i) => ({ title: r.title, subtitle: `${PEOPLE[i]} · ${['contained', 'escalated', 'assigned', 'closed'][i]}`, meta: `${i * 9 + 3}m ago` })) } : tableFor(ctx, 4),
+        traits.has('security')
+          ? { type: 'timeline', title: 'Latest response actions', items: records.slice(0, 4).map((r, i) => ({ title: r.title, subtitle: `${PEOPLE[i]} · ${['contained', 'escalated', 'assigned', 'closed'][i]}`, meta: `${i * 9 + 3}m ago` })) }
+          : ctx.money
+            ? { type: 'list', title: `Upcoming ${ctx.rental ? 'rentals' : 'bookings'}`, items: records.slice(0, 3).map((r, i) => ({ title: r.title, subtitle: `${DAYS[(i + 4) % 7]} ${12 + i * 3} Oct · ${PLACES[(i + 2) % PLACES.length]}`, status: ['Confirmed', 'Pending', 'Confirmed'][i] })) }
+            : tableFor(ctx, 4),
+        ...(ctx.money ? [{ ...cardsFor(ctx, 'compact'), title: `Saved ${Es.toLowerCase()}`, subtitle: '', items: records.slice(3, 6) }] : []),
         { type: 'feed', title: 'Activity', items: records.slice(0, 4).map((r, i) => ({ title: `${PEOPLE[i + 2]} ${['updated', 'added', 'completed', 'commented on'][i]} ${r.title}`, meta: `${i * 12 + 4}m` })) },
       ],
     }
   }
-  if (/detail|view$/.test(lower)) {
+  if (/detail|view$|profile$/.test(lower) && !/^(my )?profile$|account/.test(lower)) {
     const r = records[0]
-    return {
-      layout: 'detail',
-      sections: [
-        { type: 'gallery', variant: traits.has('media') || traits.has('marketplace') || traits.has('location') ? 'media' : 'record', title: r.title, subtitle: r.subtitle, items: records.slice(0, 4), value: r.meta },
-        { type: 'tabs', tabs: ['Overview', traits.has('marketplace') ? 'Reviews' : 'Activity', 'Details'], items: [{ title: `About this ${E.toLowerCase()}`, subtitle: `${r.title} — ${r.subtitle}. Status: ${r.status}.` }, { title: `${PEOPLE[4]} ★ ${r.rating}`, subtitle: 'Exactly as described and super easy to arrange.' }, { title: `${PEOPLE[5]} ★ 4.7`, subtitle: 'Would use again.' }] },
-        traits.has('marketplace') || traits.has('scheduling')
-          ? { type: 'summary', variant: 'booking', title: r.meta, fields: [{ label: 'Date', type: 'date' }, { label: 'Duration', type: 'select', options: ['1 day', '3 days', '1 week'] }], actions: [ctx.rental ? 'Request rental' : 'Book now'] }
-          : { type: 'list', title: 'Related', items: records.slice(1, 4) },
-      ],
+    if (traits.has('security') || (traits.has('operations') && !ctx.money)) {
+      return {
+        layout: 'detail',
+        sections: [
+          { type: 'stats', items: [{ label: traits.has('security') ? 'Severity' : 'Priority', value: r.status, change: 'Escalated 14m ago' }, { label: 'Assignee', value: PEOPLE[1].split(' ')[0], change: 'On call' }, { label: 'SLA', value: '00:42', change: 'remaining' }, { label: 'Affected', value: '7', change: traits.has('security') ? 'assets' : 'units' }] },
+          { type: 'timeline', title: r.title, items: ['Detected', 'Triaged', 'Assigned', 'Containment started', 'Update posted'].map((t, i) => ({ title: t, subtitle: `${PEOPLE[i]} · ${r.subtitle.split(' · ')[0]}`, meta: `${(5 - i) * 11}m ago` })) },
+          { ...tableFor(ctx, 4), title: traits.has('security') ? 'Affected assets' : 'Related records', actions: ['Assign', 'Resolve'] },
+          { type: 'tabs', tabs: ['Notes', 'Evidence', 'Activity'], items: [{ title: 'Analyst notes', subtitle: `Initial triage complete. ${r.title} isolated; monitoring for recurrence.` }, { title: 'Evidence', subtitle: '3 log exports · 2 screenshots · 1 memory dump' }, { title: 'Activity', subtitle: `${PEOPLE[2]} changed status to ${r.status}` }] },
+        ],
+      }
     }
+    const bookable = traits.has('marketplace') || traits.has('scheduling') || ctx.money
+    const sections = [
+      { type: 'gallery', variant: traits.has('media') || traits.has('marketplace') || traits.has('location') ? 'media' : 'record', title: r.title, subtitle: r.subtitle, items: records.slice(0, 4), value: r.meta, tabs: (ctx.architecture.features ?? []).slice(0, 4).map((f) => f.name.split(' ').slice(0, 2).join(' ')), actions: [bookable ? (ctx.rental ? 'Rent now' : 'Book now') : 'Contact', 'Save'] },
+      { type: 'tabs', tabs: ['Overview', traits.has('marketplace') ? 'Reviews' : 'Activity', 'Details'], items: [{ title: `About this ${E.toLowerCase()}`, subtitle: `${r.title} — ${r.subtitle}. Status: ${r.status}.` }, { title: `${PEOPLE[4]} ★ ${r.rating}`, subtitle: 'Exactly as described and super easy to arrange.' }, { title: `${PEOPLE[5]} ★ 4.7`, subtitle: 'Would use again.' }] },
+    ]
+    if (bookable) sections.push(packagesFor(ctx, r))
+    if (traits.has('scheduling') || bookable) sections.push({ type: 'calendar', title: 'Availability', items: [4, 9, 12, 18, 23, 27].map((day, i) => ({ day, title: `${r.title.split(' · ')[0]} available`, meta: `${9 + i}:00–${13 + i}:00` })) })
+    sections.push(bookable ? testimonialsFor(ctx, 'Reviews') : { type: 'list', title: 'Related', items: records.slice(1, 4) })
+    return { layout: 'detail', sections }
   }
-  if (/new |create|add |report |book |rent |order |divide|apply|request|reserve|post /.test(`${lower} `) && !/^reports?$/.test(lower)) {
+  if (/new |create|add |report |book |booking |rent |rental |order |divide|apply|assign |request|reserve|reservation |post /.test(`${lower} `) && !/^reports?$/.test(lower)) {
+    const bookingFlow = ctx.money && /book|rent|reserv|order|request/.test(lower)
     return {
       layout: 'focus',
       sections: [
-        { type: 'stepper', variant: 'progress', title: n, items: ['Details', traits.has('location') ? 'Location' : traits.has('scheduling') ? 'Date & time' : 'Options', traits.has('payments') ? 'Payment' : 'Review'].map((t) => ({ title: t })) },
+        { type: 'stepper', variant: 'progress', title: n, items: (bookingFlow ? ['Details', 'Date & place', 'Package', 'Confirm'] : ['Details', traits.has('location') ? 'Location' : traits.has('scheduling') ? 'Date & time' : 'Options', traits.has('payments') ? 'Payment' : 'Review']).map((t) => ({ title: t })) },
         formFor(ctx, n),
-        traits.has('media') || traits.has('location') ? { type: 'upload', title: 'Add photos', subtitle: 'Drag images here or browse — up to 6 photos' } : { type: 'summary', title: 'Summary', items: [{ title: E, meta: records[0].title }, { title: 'Status', meta: 'Draft' }] },
+        bookingFlow
+          ? { type: 'summary', title: `${ctx.rental ? 'Rental' : 'Booking'} summary`, items: [{ title: E, meta: records[0].title }, { title: 'Package', meta: 'Standard' }, { title: 'Service fee', meta: '$12' }, { title: 'Total', meta: records[0].meta }] }
+          : traits.has('media') || traits.has('location') ? { type: 'upload', title: 'Add photos', subtitle: 'Drag images here or browse — up to 6 photos' } : { type: 'summary', title: 'Summary', items: [{ title: E, meta: records[0].title }, { title: 'Status', meta: 'Draft' }] },
       ],
     }
   }

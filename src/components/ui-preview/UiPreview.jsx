@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
-  ArrowLeft, Crown, Loader2, Maximize2, Monitor, Orbit, Palette, RefreshCw, Shuffle, Smartphone, Sparkles, Tablet, Wand2, X,
+  ArrowLeft, Check, Crown, Loader2, Maximize2, Monitor, Orbit, Palette, RefreshCw, Shuffle, Smartphone, Sparkles, Tablet, Wand2, X,
 } from 'lucide-react'
 import { UI_STYLES, UI_THEMES } from '../../services/localUi'
 import PrototypeFrame from './PrototypeFrame'
@@ -58,7 +58,7 @@ function DesignPanel({ spec, onClose }) {
           <Swatch color={d.textColor} label="Text" />
         </div>
         <dl className="grid grid-cols-2 gap-2 text-xs">
-          {[['Theme', d.theme], ['Typography', d.fontStyle], ['Corners', d.borderRadius], ['Navigation', d.navigation], ['Density', d.density], ['Pages', spec.uiPages.length]].map(([k, v]) => (
+          {[['Theme', d.theme], ['Typography', d.typography || d.fontStyle], ['Buttons', d.buttonStyle], ['Cards', d.cardStyle], ['Corners', d.borderRadius], ['Navigation', d.navigation], ['Density', d.density], ['Pages', spec.uiPages.length]].map(([k, v]) => (
             <div key={k} className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2">
               <dt className="text-[10px] uppercase tracking-wider text-slate-500">{k}</dt>
               <dd className="capitalize text-slate-200">{v}</dd>
@@ -75,6 +75,28 @@ function DesignPanel({ spec, onClose }) {
  * The UI Preview workspace: page navigator, device frames, design system,
  * regenerate / variation / natural-language edits, and full-screen demo.
  */
+const UI_STAGES = ['Understanding application', 'Planning screens', 'Creating design system', 'Designing components', 'Connecting pages', 'Building demo']
+
+function GenerationStages() {
+  const [stage, setStage] = useState(0)
+  useEffect(() => {
+    const id = setInterval(() => setStage((s) => Math.min(s + 1, UI_STAGES.length - 1)), 600)
+    return () => clearInterval(id)
+  }, [])
+  return (
+    <ol className="mt-6 space-y-2 text-left" aria-live="polite">
+      {UI_STAGES.map((label, i) => (
+        <motion.li key={label} initial={{ opacity: 0, x: -8 }} animate={{ opacity: i <= stage ? 1 : 0.3, x: 0 }} transition={{ delay: i * 0.05 }} className="flex items-center gap-3 text-sm">
+          <span className={`flex h-5 w-5 items-center justify-center rounded-full ${i < stage ? 'bg-emerald-400/20 text-emerald-300' : i === stage ? 'bg-violet-500/30 text-violet-200' : 'bg-white/5 text-slate-500'}`}>
+            {i < stage ? <Check className="h-3 w-3" /> : i === stage ? <Loader2 className="h-3 w-3 animate-spin" /> : <span className="h-1 w-1 rounded-full bg-current" />}
+          </span>
+          <span className={i <= stage ? 'text-white' : 'text-slate-500'}>✦ {label}…</span>
+        </motion.li>
+      ))}
+    </ol>
+  )
+}
+
 export default function UiPreview({ galaxy, spec, busy, pageId, onPageChange, onRun, onViewArchitecture, locked, projectName }) {
   const [device, setDevice] = useState('desktop')
   const [style, setStyle] = useState('Auto')
@@ -106,9 +128,11 @@ export default function UiPreview({ galaxy, spec, busy, pageId, onPageChange, on
             <Select label="Style" value={style} options={UI_STYLES} onChange={setStyle} />
             <Select label="Theme" value={theme} options={UI_THEMES} onChange={setTheme} />
           </div>
-          <button type="button" disabled={busy} onClick={() => onRun('generate', { style, theme })} className="btn-primary mt-6 w-full py-3 text-base disabled:opacity-60">
-            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />} {busy ? 'Designing your interface…' : 'Generate UI Preview'}
-          </button>
+          {busy ? <GenerationStages /> : (
+            <button type="button" onClick={() => onRun('generate', { style, theme })} className="btn-primary mt-6 w-full py-3 text-base">
+              <Sparkles className="h-4 w-4" /> Generate UI
+            </button>
+          )}
           {locked.UI_GENERATION && <p className="mt-3 flex items-center justify-center gap-1.5 text-xs text-amber-200/90"><Crown className="h-3.5 w-3.5" /> You&rsquo;ve used your free UI preview — upgrade to generate more.</p>}
         </motion.div>
       </div>
@@ -162,7 +186,7 @@ export default function UiPreview({ galaxy, spec, busy, pageId, onPageChange, on
           </div>
           <div className="flex items-center justify-between gap-2 px-1 text-[11px] text-slate-400">
             <p className="truncate"><span className="text-slate-200">{current?.name}</span> — {current?.purpose}</p>
-            <button type="button" onClick={() => onViewArchitecture(current)} className="flex shrink-0 items-center gap-1 text-violet-300 hover:text-violet-200"><Orbit className="h-3.5 w-3.5" /> View in Architecture</button>
+            <button type="button" onClick={() => onViewArchitecture(current)} className="flex shrink-0 items-center gap-1 text-violet-300 hover:text-violet-200"><Orbit className="h-3.5 w-3.5" /> View in Galaxy</button>
           </div>
           <div className="relative flex min-h-0 flex-1 items-start justify-center overflow-auto rounded-2xl border border-white/10 bg-black/30 p-2">
             <div className={`relative overflow-hidden shadow-2xl transition-all duration-300 ${device === 'desktop' ? 'h-full w-full rounded-xl' : 'rounded-[28px] border-[6px] border-slate-800'}`} style={device === 'desktop' ? undefined : { width: deviceSpec.width, height: deviceSpec.height, maxHeight: '100%', maxWidth: '100%' }}>
