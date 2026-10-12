@@ -47,6 +47,8 @@ const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
 // Realistic sample names for common nouns. Anything else falls back to generic naming.
 const SAMPLE_NAMES = {
+  bill: ['Netflix Premium', 'City Power & Light', 'Spotify Family', 'Car Insurance — Allstate', 'Fibre Broadband', 'Gym Membership'],
+  language: ['Spanish for Kids', 'French Adventures', 'Mandarin Stars', 'Japanese Explorers', 'German Quest', 'Arabic Garden'],
   pet: ['Biscuit · Golden Retriever', 'Luna · Tabby Cat', 'Pepper · Border Collie', 'Mochi · Shiba Inu', 'Oscar · Grey Parrot', 'Coco · French Bulldog'],
   equipment: ['John Deere 5075E Tractor', 'Kubota Seed Drill', 'Mahindra Rotavator', 'Case IH Combine Harvester', 'Irrigation Pump 5HP', 'Hay Baler Pro 450'],
   ticket: ['Coldplay — Music of the Spheres', 'Champions League Final', 'Hamilton · West End', 'TechCrunch Disrupt Pass', 'Jazz Night at Blue Note', 'Comic Con Weekend'],
@@ -153,13 +155,14 @@ function makeContext(architecture, idea) {
           : ['Active', 'Pending', 'Completed']
   const rental = /rent|lease/i.test(idea ?? '')
   const money = analysis.traits.has('payments') || analysis.traits.has('marketplace')
+  const finance = /finance|budget|bill|expense|saving/i.test(idea ?? '')
   const roles = (architecture.userRoles ?? []).map((r) => r.name).filter((r) => !['Administrator', 'Guest'].includes(r))
 
   const records = samples.map((title, i) => ({
     title,
     subtitle: personEntity ? `${PLACES[i % PLACES.length]} · ${4 + (i % 9)} yrs experience` : `${PLACES[(i + 2) % PLACES.length]} · ${PEOPLE[(i + 3) % PEOPLE.length]}`,
     status: statuses[i % statuses.length],
-    meta: money ? (rental ? `$${40 + Math.round(random() * 160)}/day` : `$${20 + Math.round(random() * 480)}`) : `${1 + Math.round(random() * 23)}h ago`,
+    meta: money ? (rental ? `$${40 + Math.round(random() * 160)}/day` : `$${20 + Math.round(random() * 480)}`) : finance ? `$${8 + Math.round(random() * 140)}/mo` : `${1 + Math.round(random() * 23)}h ago`,
     rating: (4 + random()).toFixed(1),
     tag: titleCase((architecture.features?.[i % Math.max(1, architecture.features.length)]?.name ?? 'Featured').split(' ')[0]),
   }))
@@ -175,7 +178,7 @@ function statsFor(ctx) {
     { label: 'MTTR', value: '2.4h', change: '−18%' },
     { label: 'Alerts / 24h', value: '1,284', change: '+9%' },
   ]
-  if (/finance|budget|transaction|expense/i.test(Es)) return [
+  if (/finance|budget|transaction|expense|bill|saving|goal|subscription/i.test(Es)) return [
     { label: 'Balance', value: '$12,480', change: '+3.2%' },
     { label: 'Spent this month', value: '$2,315', change: '72% of budget' },
     { label: 'Saved', value: '$640', change: 'Goal $1,000' },
@@ -354,6 +357,29 @@ function sectionsFor(page, ctx, variant) {
         { type: 'stats', items: [{ label: 'Badges', value: '5 / 8', change: '+1 this week' }, { label: 'XP', value: '2,340', change: 'Level 7' }, { label: 'Streak', value: '6 days', change: 'Best 14' }] },
         { type: 'cards', variant: 'badges', title: 'Your badges', items: names.map((title, i) => ({ title, subtitle: i < 5 ? `Earned ${DAYS[i]}` : `${30 + i * 8}% there`, status: i < 5 ? 'Unlocked' : 'Locked' })) },
         { type: 'progress', title: 'Next rewards', items: names.slice(5).map((title, i) => ({ title, value: 40 + i * 20 })) },
+      ],
+    }
+  }
+  if (/^budgets?$|budget (overview|planner|limits)/.test(lower)) {
+    const cats = [['Groceries', 450, 312], ['Rent & utilities', 1650, 1650], ['Transport', 220, 164], ['Dining out', 180, 207], ['Subscriptions', 60, 47], ['Health & fitness', 120, 55]]
+    return {
+      layout: 'stack',
+      sections: [
+        { type: 'stats', items: [{ label: 'Monthly budget', value: '$2,680', change: 'October' }, { label: 'Spent', value: '$2,435', change: '91% used' }, { label: 'Left to spend', value: '$245', change: '9 days left' }, { label: 'Over budget', value: '1 category', change: 'Dining out' }] },
+        { type: 'progress', title: 'Spending by category', items: cats.map(([title, limit, spent]) => ({ title: `${title} · $${spent} of $${limit}`, value: Math.min(100, Math.round((spent / limit) * 100)) })) },
+        { type: 'table', title: 'Budget limits', columns: ['Category', 'Limit', 'Spent', 'Status'], items: cats.map(([title, limit, spent]) => ({ title, status: spent > limit ? 'Over' : spent / limit > 0.85 ? 'Near limit' : 'On track', meta: `$${limit}`, cells: [title, `$${limit}`, `$${spent}`, spent > limit ? 'Over' : spent / limit > 0.85 ? 'Near limit' : 'On track'] })), actions: ['Edit budget'] },
+      ],
+    }
+  }
+  if (/goals?$|savings?$/.test(lower) && !/detail/.test(lower)) {
+    const goals = [['Emergency fund', 6000, 4150, 'Mar 2027'], ['Japan trip', 3500, 1280, 'Aug 2027'], ['New laptop', 1800, 1620, 'Dec 2026'], ['House deposit', 25000, 7400, '2029']]
+    return {
+      layout: 'stack',
+      sections: [
+        { type: 'stats', items: [{ label: 'Total saved', value: '$14,450', change: '+$620 this month' }, { label: 'Active goals', value: '4', change: '1 almost done' }, { label: 'Auto-save', value: '$450/mo', change: 'Every payday' }] },
+        { type: 'progress', title: n, items: goals.map(([title, target, saved]) => ({ title: `${title} · $${saved.toLocaleString('en-US')} of $${target.toLocaleString('en-US')}`, value: Math.round((saved / target) * 100) })) },
+        { type: 'cards', variant: 'compact', title: 'Goal details', items: goals.map(([title, target, saved, due]) => ({ title, subtitle: `Target $${target.toLocaleString('en-US')} by ${due}`, status: saved / target > 0.85 ? 'Almost there' : 'On track', meta: `$${saved.toLocaleString('en-US')}` })) },
+        { type: 'form', title: 'Add a goal', fields: [{ label: 'Goal name', type: 'text' }, { label: 'Target amount', type: 'number' }, { label: 'Target date', type: 'date' }], actions: ['Save goal'] },
       ],
     }
   }
