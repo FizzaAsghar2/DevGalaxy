@@ -77,6 +77,8 @@ function buildRoles(analysis, entity, marketplace) {
   return [...new Set(roles)]
 }
 
+const FEATURE_NOUNS = /challenge|badge|achievement|lesson|quiz|course|goal|budget|bill|alert|playlist|recipe|habit|workout|task|milestone|reward|module|exercise/
+
 export function generateLocalArchitecture(idea, { appType = 'SaaS', complexity = 'medium' } = {}) {
   const analysis = analyseIdea(idea)
   const limits = COMPLEXITY_LIMITS[complexity] ?? COMPLEXITY_LIMITS.medium
@@ -136,6 +138,9 @@ export function generateLocalArchitecture(idea, { appType = 'SaaS', complexity =
   add(`${E} Details`, `Everything about a single ${E.toLowerCase()}`)
   if (mainAction && mainAction.record !== 'record') add(`${mainAction.label} ${E}`, `Flow to ${mainAction.label.toLowerCase()} a ${E.toLowerCase()}`)
   else if (!toolLike) add(`New ${E}`, `Create a ${E.toLowerCase()}`)
+  for (const compound of secondary.filter((c) => FEATURE_NOUNS.test(c)).slice(0, 3)) {
+    add(titleCase(plural(compound)), `${titleCase(plural(compound))} for ${plural(roles[0] ?? 'user').toLowerCase()}`)
+  }
   if (traits.has('ai') && traits.has('learning')) add(`${E} Session`, `Live AI-driven ${E.toLowerCase()} session`)
   if (traits.has('ai')) add(traits.has('learning') ? 'AI Feedback' : 'Saved Results', 'Model output with scores and highlights')
   if (traits.has('realtime') && traits.has('gamified')) add('Live Game', 'Realtime room where players answer together')

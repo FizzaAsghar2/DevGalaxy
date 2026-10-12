@@ -358,7 +358,7 @@ function sectionsFor(page, ctx, variant) {
     }
   }
   if (/leaderboard|ranking/.test(lower)) return { layout: 'stack', sections: [{ type: 'leaderboard', title: 'This week', items: PEOPLE.slice(0, 6).map((name, i) => ({ title: name, value: 1200 - i * 137, meta: `${7 - i} day streak` })) }] }
-  if (/\b(live|play|session|practice|start|room|challenge)\b/.test(lower) && !/detail|^new |history/.test(lower) && (traits.has('ai') || traits.has('realtime') || traits.has('gamified') || traits.has('learning'))) {
+  if (/\b(live|play|session|practice|start|room|challenges?)\b/.test(lower) && !/detail|^new |history/.test(lower) && (traits.has('ai') || traits.has('realtime') || traits.has('gamified') || traits.has('learning'))) {
     const quiz = traits.has('gamified')
     return {
       layout: 'focus',
