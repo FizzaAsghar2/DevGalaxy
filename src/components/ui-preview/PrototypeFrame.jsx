@@ -57,7 +57,7 @@ function personalise(page, base, selection) {
       items: section.items.map((item) => {
         const out = Object.fromEntries(Object.entries(item).map(([k, v]) => [k, swap(v)]))
         if (section.type === 'pricing' || (section.type === 'summary' && /total/i.test(item.title))) out.meta = money(item.meta)
-        if (section.type === 'tabs' && item.subtitle?.includes(selection.title) && selection.subtitle) out.subtitle = `${selection.title} — ${selection.subtitle}. Status: ${selection.status ?? 'Available'}.`
+        if (section.type === 'tabs' && out.subtitle?.includes(selection.title) && selection.subtitle) out.subtitle = `${selection.title} — ${selection.subtitle}. Status: ${selection.status ?? 'Available'}.`
         return out
       }),
     })),

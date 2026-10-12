@@ -519,7 +519,7 @@ function Gallery({ section, onAction, selection }) {
   return (
     <div className="grid gap-4 md:grid-cols-[1.4fr_1fr]">
       <div>
-        <Thumb index={active} tall label={section.items[active]?.status} />
+        <Thumb index={active} tall label={active === 0 && selection?.status ? selection.status : section.items[active]?.status} />
         <div className="mt-2 grid grid-cols-4 gap-2">
           {section.items.slice(0, 4).map((_, i) => (
             <button key={i} type="button" onClick={() => setActive(i)} className="overflow-hidden transition" style={{ outline: active === i ? '2px solid var(--p-primary)' : 'none', borderRadius: 'var(--p-radius-sm)' }}>
