@@ -588,12 +588,33 @@ function Field({ field, value, onChange }) {
  * When the page has a progress stepper the form is split across its steps;
  * the final step reviews the entered values before confirming.
  */
-function Form({ section, onAction, step = 0, steps = 1, onStep }) {
-  const [values, setValues] = useState({})
-  const inputSteps = Math.max(1, steps > 1 ? steps - 1 : 1)
-  const perStep = Math.ceil(section.fields.length / inputSteps)
+const STEP_TOPICS = [
+  [/date|time|place|location|where|when|schedule/i, /date|time|location|address|place|city|area|venue|schedule/i],
+  [/package|option|plan|payment|pay|extras/i, /package|plan|option|tier|payment|card|price|amount|quantity|extras/i],
+]
+
+function stepFields(fields, labels) {
+  const inputSteps = Math.max(1, labels.length - 1)
+  const groups = Array.from({ length: inputSteps }, () => [])
+  for (const field of fields) {
+    const topic = STEP_TOPICS.find(([, fieldRe]) => fieldRe.test(field.label) || (field.type === 'date' && fieldRe.test('date')))
+    const index = topic ? labels.slice(0, inputSteps).findIndex((l) => topic[0].test(l)) : -1
+    groups[index > 0 ? index : 0].push(field)
+  }
+  if (groups.some((g) => g.length === 0)) {
+    const per = Math.ceil(fields.length / inputSteps)
+    return groups.map((_, i) => fields.slice(i * per, i * per + per))
+  }
+  return groups
+}
+
+function Form({ section, onAction, step = 0, steps = 1, stepLabels = [], onStep, values: shared, onValues }) {
+  const [own, setOwn] = useState({})
+  const values = shared ?? own
+  const setValues = onValues ?? setOwn
   const reviewing = steps > 1 && step >= steps - 1
-  const fields = steps > 1 ? section.fields.slice(step * perStep, step * perStep + perStep) : section.fields
+  const groups = useMemo(() => (steps > 1 ? stepFields(section.fields, stepLabels) : [section.fields]), [section.fields, stepLabels, steps])
+  const fields = groups[Math.min(step, groups.length - 1)] ?? []
   const submitLabel = steps > 1 && !reviewing ? 'Continue' : section.actions.at(-1) && section.actions.at(-1) !== 'Continue' ? section.actions.at(-1) : steps > 1 ? 'Confirm' : section.actions[0] || 'Submit'
   const submit = (e) => {
     e.preventDefault()
@@ -666,13 +687,20 @@ function Stepper({ section, step: controlled, onStep }) {
   )
 }
 
-function Summary({ section, onAction }) {
+function Summary({ section, onAction, values = {} }) {
+  const fee = price(section.items.find((i) => /fee/i.test(i.title)) ?? {})
+  const chosen = values.Package && section.items.length ? values[`${values.Package} price`] : null
+  const items = section.items.map((item) => {
+    if (values[item.title]) return { ...item, meta: values[item.title] }
+    if (/total/i.test(item.title) && chosen) return { ...item, meta: `$${price({ meta: chosen }) + fee}` }
+    return item
+  })
   return (
     <Card className="p-5 md:sticky md:top-4">
       <Heading section={section} />
       {section.fields.length > 0 && <div className="mb-3 space-y-2">{section.fields.map((f) => <label key={f.label} className="block text-xs" style={{ color: 'var(--p-muted)' }}><span className="mb-1 block">{f.label}</span><Field field={f} /></label>)}</div>}
       <dl className="space-y-2 text-sm">
-        {section.items.map((item, i) => (
+        {items.map((item, i) => (
           <div key={i} className={`flex justify-between gap-2 ${i === section.items.length - 1 && section.items.length > 2 ? 'pt-2 font-bold' : ''}`} style={{ borderTop: i === section.items.length - 1 && section.items.length > 2 ? '1px solid var(--p-border)' : 'none', color: 'var(--p-text)' }}>
             <dt style={{ color: i === section.items.length - 1 && section.items.length > 2 ? 'var(--p-text)' : 'var(--p-muted)' }}>{item.title}</dt>
             <dd className="text-right">{item.meta}</dd>
@@ -927,7 +955,7 @@ function Pricing({ section, onAction }) {
           <p className="text-sm font-semibold" style={{ color: 'var(--p-text)' }}>{tier.title}</p>
           <p className="p-display mt-2 text-2xl font-bold" style={{ color: 'var(--p-text)' }}>{tier.meta}</p>
           <p className="mt-1 text-xs" style={{ color: 'var(--p-muted)' }}>{tier.subtitle}</p>
-          <Btn className="mt-4 w-full" variant={i === 1 ? 'primary' : 'ghost'} onClick={() => onAction(section.actions[0] || 'Choose plan', tier)}>{section.actions[0] || 'Choose'}</Btn>
+          <Btn className="mt-4 w-full" variant={i === 1 ? 'primary' : 'ghost'} onClick={() => onAction(section.actions[0] || 'Choose plan', { ...tier, kind: 'package' })}>{section.actions[0] || 'Choose'}</Btn>
         </Card>
       ))}
     </div>
@@ -1015,8 +1043,9 @@ const RENDERERS = {
  * the data sections, a progress stepper drives the form, and `selection`
  * (the record opened from another page) fills the detail header.
  */
-export function PageSections({ page, onAction, selection, initialQuery = '' }) {
+export function PageSections({ page, onAction, selection, initialValues, initialQuery = '' }) {
   const [query, setQuery] = useState(initialQuery)
+  const [values, setValues] = useState(initialValues ?? {})
   const [filter, setFilter] = useState('All')
   const [sort, setSort] = useState(SORTS[0])
   const [step, setStep] = useState(0)
@@ -1026,7 +1055,8 @@ export function PageSections({ page, onAction, selection, initialQuery = '' }) {
     if (section.type === 'search') return <SearchBar key={section.id} section={section} query={query} onQuery={setQuery} />
     if (section.type === 'filters') return <Filters key={section.id} section={section} active={filter} onToggle={setFilter} sort={sort} onSort={setSort} />
     if (section === stepper) return <Stepper key={section.id} section={section} step={step} onStep={setStep} />
-    if (section.type === 'form') return <Form key={section.id} section={section} onAction={onAction} step={stepper ? step : 0} steps={steps} onStep={setStep} />
+    if (section.type === 'form') return <Form key={section.id} section={section} onAction={onAction} step={stepper ? step : 0} steps={steps} stepLabels={stepper ? stepper.items.map((i) => i.title) : []} onStep={setStep} values={values} onValues={setValues} />
+    if (section.type === 'summary') return <Summary key={section.id} section={section} onAction={onAction} values={values} />
     const Component = RENDERERS[section.type] ?? ListSection
     return <Component key={section.id} section={section} query={query} filter={filter} sort={sort} onAction={onAction} selection={selection} />
   })

@@ -37,6 +37,33 @@ function cardVars(d, dark) {
   return { '--p-card-bg': d.surfaceColor, '--p-card-border': border, '--p-card-shadow': dark ? '0 1px 0 rgba(255,255,255,0.03) inset' : '0 1px 2px rgba(15,23,42,0.05)', '--p-card-blur': 'none' }
 }
 
+function numeric(value) {
+  return Number(String(value ?? '').replace(/[^0-9.]/g, '')) || 0
+}
+
+/** Swaps the page's default record for the one the visitor opened (title, price, rating) across all sections. */
+function personalise(page, base, selection) {
+  if (!page || !base?.title || !selection?.title || base.title === selection.title) return page
+  const ratio = numeric(base.meta) && numeric(selection.meta) ? numeric(selection.meta) / numeric(base.meta) : 1
+  const swap = (v) => (typeof v === 'string' ? v.split(base.title).join(selection.title) : v)
+  const money = (v) => (typeof v === 'string' && /\$\d/.test(v) && ratio !== 1 ? v.replace(/\$(\d[\d,.]*)/, (_, n) => `$${Math.round(numeric(n) * ratio)}`) : v)
+  return {
+    ...page,
+    sections: page.sections.map((section) => ({
+      ...section,
+      title: swap(section.title),
+      subtitle: section.type === 'gallery' ? selection.subtitle || section.subtitle : swap(section.subtitle),
+      value: section.type === 'gallery' && selection.meta ? selection.meta : section.value,
+      items: section.items.map((item) => {
+        const out = Object.fromEntries(Object.entries(item).map(([k, v]) => [k, swap(v)]))
+        if (section.type === 'pricing' || (section.type === 'summary' && /total/i.test(item.title))) out.meta = money(item.meta)
+        if (section.type === 'tabs' && item.subtitle?.includes(selection.title) && selection.subtitle) out.subtitle = `${selection.title} — ${selection.subtitle}. Status: ${selection.status ?? 'Available'}.`
+        return out
+      }),
+    })),
+  }
+}
+
 const FLOW = /book|rent|reserv|checkout|order|request|apply|enrol|register for/i
 
 export function designVars(d) {
@@ -175,6 +202,7 @@ export default function PrototypeFrame({ spec, pageId, onNavigate, device = 'des
   const [drawer, setDrawer] = useState(false)
   const [modal, setModal] = useState(null)
   const [selected, setSelected] = useState(null)
+  const [pkg, setPkg] = useState(null)
   const [signedIn, setSignedIn] = useState(true)
   const scrollRef = useRef(null)
   const compact = device !== 'desktop'
@@ -198,9 +226,16 @@ export default function PrototypeFrame({ spec, pageId, onNavigate, device = 'des
   if (!page) return null
 
   const go = (id, item) => {
-    if (item) setSelected(item)
+    if (item?.kind === 'package') setPkg(item)
+    else if (item) {
+      setSelected(item)
+      setPkg(null)
+    }
     onNavigate(id)
   }
+  const baseRecord = detailPage?.sections.find((sec) => sec.type === 'gallery') ?? records[0]
+  const base = baseRecord ? { title: baseRecord.title, meta: baseRecord.value ?? baseRecord.meta } : null
+  const personalised = page.id === detailPage?.id || page.id === flowPage?.id ? personalise(page, base, selected) : page
 
   const openRecord = (item) => {
     if (detailPage && page.id !== detailPage.id) return go(detailPage.id, item)
@@ -209,17 +244,19 @@ export default function PrototypeFrame({ spec, pageId, onNavigate, device = 'des
 
   const onAction = (label, item) => {
     const text = String(label)
-    const target = spec.uiPages.find((p) => p.name.toLowerCase() === text.toLowerCase() || text.toLowerCase() === `browse ${p.name.toLowerCase()}`)
-    if (target) return go(target.id, item)
     if (/sign in|create account|log in/i.test(text)) {
-      setSignedIn(true)
-      if (authPage && page.id === authPage.id) return go(navPages[0]?.id ?? page.id)
+      if (authPage && page.id === authPage.id) {
+        setSignedIn(true)
+        return go(navPages[0]?.id ?? page.id)
+      }
       if (authPage) return go(authPage.id)
     }
+    const target = spec.uiPages.find((p) => p.name.toLowerCase() === text.toLowerCase() || text.toLowerCase() === `browse ${p.name.toLowerCase()}`)
+    if (target) return go(target.id, item)
     if (/^(open|view|details?)$/i.test(text) && item) return openRecord(item)
     if (/^category$/i.test(text) && browsePage) return go(browsePage.id)
     if (/^(get started|explore|start)/i.test(text) && browsePage && page.id !== browsePage.id) return go(browsePage.id)
-    if (FLOW.test(text) && flowPage && page.id !== flowPage.id) return go(flowPage.id, item?.title ? item : selected)
+    if (FLOW.test(text) && flowPage && page.id !== flowPage.id) return go(flowPage.id, item?.title && page.id !== detailPage?.id ? item : item?.kind === 'package' ? item : null)
     if (FLOW.test(text) && !flowPage && item && detailPage && page.id !== detailPage.id) return go(detailPage.id, item)
     if (item?.title && !item.subtitle?.includes(':') && /badge|open/i.test(text)) return setModal({ kind: 'detail', label: item.title, item })
     setModal({ kind: 'done', label: text, item })
@@ -269,7 +306,7 @@ export default function PrototypeFrame({ spec, pageId, onNavigate, device = 'des
                   {page.purpose && <p className="mt-0.5 text-xs" style={{ color: 'var(--p-muted)' }}>{page.purpose}</p>}
                 </div>
               )}
-              <PageSections key={page.id} page={page} onAction={onAction} selection={page.id === detailPage?.id || page.id === flowPage?.id ? selected : null} />
+              <PageSections key={`${page.id}-${selected?.title ?? ''}-${pkg?.title ?? ''}`} page={personalised} onAction={onAction} selection={page.id === detailPage?.id || page.id === flowPage?.id ? selected : null} initialValues={page.id === flowPage?.id && pkg ? { Package: pkg.title, [`${pkg.title} price`]: pkg.meta } : undefined} />
             </motion.div>
           </AnimatePresence>
           {!sidebar && page.layout !== 'centered' && <Footer d={d} pages={navPages} onNavigate={(id) => go(id)} />}

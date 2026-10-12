@@ -256,7 +256,7 @@ function cardsFor(ctx, variant) {
 
 function formFor(ctx, pageName) {
   const fields = fieldNames(ctx.primaryTable)
-    .filter((f) => !/(^id$|_id$|created_at|updated_at|status)/.test(f))
+    .filter((f) => !/(^id$|_id$|created_at|updated_at|status|latitude|longitude|^lat$|^lng$)/.test(f))
     .slice(0, 5)
     .map((f) => ({
       label: titleCase(f),
@@ -269,7 +269,7 @@ function formFor(ctx, pageName) {
       ctx.traits.has('location') || ctx.money ? { label: 'Location', type: 'text' } : null,
       ctx.money ? { label: 'Package', type: 'select', options: ['Essential', 'Standard', 'Premium'] } : null,
     ].filter((f) => f && !have.has(f.label.toLowerCase()))
-    fields.splice(0, 0, ...extra)
+    fields.push(...extra)
   }
   if (fields.length < 3) fields.push({ label: 'Details', type: 'textarea' }, { label: 'Photos', type: 'file' })
   return { type: 'form', title: pageName, subtitle: `Fill in the ${ctx.E.toLowerCase()} details`, fields, actions: ['Continue'] }
