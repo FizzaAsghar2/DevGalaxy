@@ -46,6 +46,25 @@ const PLACES = ['Lahore', 'Austin', 'Lisbon', 'Nairobi', 'Toronto', 'Melbourne',
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
 // Realistic sample names for common nouns. Anything else falls back to generic naming.
+const WORD_QUIZ = {
+  spanish: ['manzana', 'naranja', 'plátano', 'fresa'],
+  french: ['pomme', 'orange', 'banane', 'fraise'],
+  german: ['Apfel', 'Orange', 'Banane', 'Erdbeere'],
+  japanese: ['ringo', 'mikan', 'banana', 'ichigo'],
+  mandarin: ['píngguǒ', 'júzi', 'xiāngjiāo', 'cǎoméi'],
+  arabic: ['tuffāḥa', 'burtuqāla', 'mawza', 'farawla'],
+}
+
+/** Picks a quiz prompt that fits the product: vocabulary for language learning, trivia otherwise. */
+function quizQuestion(idea, recordTitle) {
+  const text = `${recordTitle} ${idea ?? ''}`.toLowerCase()
+  const language = Object.keys(WORD_QUIZ).find((l) => text.includes(l)) ?? (/language|vocab|word/.test(text) ? 'spanish' : null)
+  if (!language) return { prompt: 'Which city is the capital of Australia?', options: ['Sydney', 'Canberra', 'Melbourne', 'Perth'] }
+  const [apple, ...rest] = WORD_QUIZ[language]
+  const options = [rest[0], apple, rest[1], rest[2]]
+  return { prompt: `How do you say “apple” in ${language[0].toUpperCase()}${language.slice(1)}?`, options }
+}
+
 const SAMPLE_NAMES = {
   bill: ['Netflix Premium', 'City Power & Light', 'Spotify Family', 'Car Insurance — Allstate', 'Fibre Broadband', 'Gym Membership'],
   language: ['Spanish for Kids', 'French Adventures', 'Mandarin Stars', 'Japanese Explorers', 'German Quest', 'Arabic Garden'],
@@ -167,7 +186,7 @@ function makeContext(architecture, idea) {
     tag: titleCase((architecture.features?.[i % Math.max(1, architecture.features.length)]?.name ?? 'Featured').split(' ')[0]),
   }))
 
-  return { analysis, traits: analysis.traits, architecture, E, Es, records, statuses, money, rental, roles, random, tables, primaryTable }
+  return { analysis, traits: analysis.traits, architecture, E, Es, records, statuses, money, rental, roles, random, tables, primaryTable, idea }
 }
 
 function statsFor(ctx) {
@@ -386,6 +405,7 @@ function sectionsFor(page, ctx, variant) {
   if (/leaderboard|ranking/.test(lower)) return { layout: 'stack', sections: [{ type: 'leaderboard', title: 'This week', items: PEOPLE.slice(0, 6).map((name, i) => ({ title: name, value: 1200 - i * 137, meta: `${7 - i} day streak` })) }] }
   if (/\b(live|play|session|practice|start|room|challenges?)\b/.test(lower) && !/detail|^new |history/.test(lower) && (traits.has('ai') || traits.has('realtime') || traits.has('gamified') || traits.has('learning'))) {
     const quiz = traits.has('gamified')
+    const question = quizQuestion(ctx.idea, records[0].title)
     return {
       layout: 'focus',
       sections: [
@@ -393,8 +413,8 @@ function sectionsFor(page, ctx, variant) {
           type: 'session',
           variant: quiz ? 'quiz' : 'ai',
           title: quiz ? `Question 4 of 10 · ${records[0].title}` : `${records[0].title}`,
-          subtitle: quiz ? 'Which city is the capital of Australia?' : 'Tell me about a time you had to deal with conflicting priorities. How did you decide what to do first?',
-          items: quiz ? ['Sydney', 'Canberra', 'Melbourne', 'Perth'].map((t) => ({ title: t })) : [{ title: 'Clarity', value: 78 }, { title: 'Structure (STAR)', value: 64 }, { title: 'Confidence', value: 82 }],
+          subtitle: quiz ? question.prompt : 'Tell me about a time you had to deal with conflicting priorities. How did you decide what to do first?',
+          items: quiz ? question.options.map((t) => ({ title: t })) : [{ title: 'Clarity', value: 78 }, { title: 'Structure (STAR)', value: 64 }, { title: 'Confidence', value: 82 }],
           value: quiz ? 18 : 120,
           actions: quiz ? ['Lock answer'] : ['Start recording', 'Skip question'],
         },
