@@ -608,7 +608,9 @@ function stepFields(fields, labels) {
   return groups
 }
 
-function Form({ section, onAction, step = 0, steps = 1, stepLabels = [], onStep, values: shared, onValues }) {
+const EMPTY = {}
+
+function Form({ section, onAction, step = 0, steps = 1, stepLabels = [], onStep, values: shared, onValues, initial = EMPTY }) {
   const [own, setOwn] = useState({})
   const values = shared ?? own
   const setValues = onValues ?? setOwn
@@ -620,7 +622,7 @@ function Form({ section, onAction, step = 0, steps = 1, stepLabels = [], onStep,
     e.preventDefault()
     if (steps > 1 && !reviewing) return onStep(step + 1)
     onAction(submitLabel, { title: section.title, subtitle: Object.entries(values).filter(([, v]) => v).map(([k, v]) => `${k}: ${v}`).join(' · ') })
-    setValues({})
+    setValues(initial)
     onStep?.(0)
   }
   return (
@@ -645,7 +647,7 @@ function Form({ section, onAction, step = 0, steps = 1, stepLabels = [], onStep,
           ))
         )}
         <div className="flex justify-end gap-2 sm:col-span-2">
-          {steps > 1 && step > 0 ? <Btn variant="ghost" onClick={() => onStep(step - 1)}><ChevronLeft className="h-3.5 w-3.5" /> Back</Btn> : <Btn variant="ghost" onClick={() => setValues({})}>Clear</Btn>}
+          {steps > 1 && step > 0 ? <Btn variant="ghost" onClick={() => onStep(step - 1)}><ChevronLeft className="h-3.5 w-3.5" /> Back</Btn> : <Btn variant="ghost" onClick={() => setValues(initial)}>Clear</Btn>}
           <button type="submit" className="px-3.5 py-2 text-xs font-semibold" style={{ background: 'var(--p-btn-bg)', color: 'var(--p-btn-fg)', border: 'var(--p-btn-border)', borderRadius: 'var(--p-btn-radius)' }}>{submitLabel}</button>
         </div>
       </form>
@@ -1055,7 +1057,7 @@ export function PageSections({ page, onAction, selection, initialValues, initial
     if (section.type === 'search') return <SearchBar key={section.id} section={section} query={query} onQuery={setQuery} />
     if (section.type === 'filters') return <Filters key={section.id} section={section} active={filter} onToggle={setFilter} sort={sort} onSort={setSort} />
     if (section === stepper) return <Stepper key={section.id} section={section} step={step} onStep={setStep} />
-    if (section.type === 'form') return <Form key={section.id} section={section} onAction={onAction} step={stepper ? step : 0} steps={steps} stepLabels={stepper ? stepper.items.map((i) => i.title) : []} onStep={setStep} values={values} onValues={setValues} />
+    if (section.type === 'form') return <Form key={section.id} section={section} onAction={onAction} step={stepper ? step : 0} steps={steps} stepLabels={stepper ? stepper.items.map((i) => i.title) : []} onStep={setStep} values={values} onValues={setValues} initial={initialValues} />
     if (section.type === 'summary') return <Summary key={section.id} section={section} onAction={onAction} values={values} />
     const Component = RENDERERS[section.type] ?? ListSection
     return <Component key={section.id} section={section} query={query} filter={filter} sort={sort} onAction={onAction} selection={selection} />
