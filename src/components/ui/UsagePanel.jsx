@@ -1,46 +1,43 @@
 import { Link } from 'react-router-dom'
-import { Crown, ShieldCheck } from 'lucide-react'
+import { motion } from 'framer-motion'
+import { Activity, ArrowRight, Coins, Cpu } from 'lucide-react'
 import { useAccount } from '../../account/AccountProvider'
-import { USAGE_ACTIONS } from '../../lib/plans'
+import { formatCents } from '../../lib/usage'
 
-const SHOWN = ['GALAXY_GENERATION', 'UI_GENERATION', 'UI_REGENERATION']
-
+/** Compact "AI usage this month" strip for the dashboard; details live in Settings → Usage. */
 export default function UsagePanel() {
-  const { account, isAdmin, error } = useAccount()
+  const { account, usage, error } = useAccount()
   if (error && !account) {
     return <p className="mt-6 rounded-xl border border-amber-300/20 bg-amber-400/5 px-4 py-3 text-xs text-amber-100">{error}</p>
   }
   if (!account) return null
+  const max = Math.max(1, ...usage.series.map((d) => d.calls))
+  const budget = account.budget ?? {}
   return (
     <section className="glass mt-6 flex flex-wrap items-center gap-5 rounded-2xl px-5 py-4">
-      <div className="min-w-[140px]">
-        <p className="label-muted">Your plan</p>
-        <p className="mt-1 flex items-center gap-1.5 font-display text-lg text-white">
-          {isAdmin ? <ShieldCheck className="h-4 w-4 text-amber-300" /> : account.plan.id !== 'free' && <Crown className="h-4 w-4 text-amber-300" />}
-          {isAdmin ? 'Administrator' : account.plan.name}
-        </p>
-        {account.mode === 'demo' && <p className="text-[10px] text-slate-500">Demo mode · simulated locally</p>}
+      <div className="min-w-[150px]">
+        <p className="label-muted">AI usage · this month</p>
+        <p className="mt-1 flex items-center gap-1.5 font-display text-lg text-white"><Activity className="h-4 w-4 text-violet-300" /> {usage.monthCalls} generations</p>
+        <p className="text-[10px] text-slate-500">{account.aiConfigured ? `${usage.aiCalls} used the AI provider` : 'Offline generator · no AI provider connected'}</p>
       </div>
-      <div className="grid flex-1 gap-3 sm:grid-cols-3">
-        {SHOWN.map((action) => {
-          const e = account.entitlements[action]
-          const pct = e.unlimited ? 100 : e.limit ? Math.round(((e.limit - e.remaining) / e.limit) * 100) : 100
-          return (
-            <div key={action}>
-              <div className="flex justify-between text-[11px] text-slate-400">
-                <span>{USAGE_ACTIONS[action].label}</span>
-                <span className="text-slate-200">{e.unlimited ? 'Unlimited' : e.limit === 0 ? 'Pro only' : `${e.remaining} of ${e.limit} left`}</span>
-              </div>
-              <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-white/10">
-                <div className={`h-full rounded-full ${e.unlimited ? 'bg-emerald-400/70' : 'bg-gradient-to-r from-violet-500 to-cyan-400'}`} style={{ width: `${e.unlimited ? 100 : pct}%` }} />
-              </div>
-            </div>
-          )
-        })}
+      <div className="min-w-[130px]">
+        <p className="label-muted">Estimated spend</p>
+        <p className="mt-1 flex items-center gap-1.5 font-display text-lg text-white"><Coins className="h-4 w-4 text-amber-300" /> {formatCents(usage.monthCents)}</p>
+        <p className="text-[10px] text-slate-500">{budget.budgetCents != null ? `Budget ${formatCents(budget.budgetCents)} / month` : 'No monthly budget set'}</p>
       </div>
-      {!isAdmin && account.plan.id === 'free' && (
-        <Link to="/pricing" className="btn-primary px-4 py-2 text-xs"><Crown className="h-3.5 w-3.5" /> Upgrade</Link>
-      )}
+      <div className="flex h-12 flex-1 items-end gap-1" aria-label="Generations over the last 14 days">
+        {usage.series.map((d, i) => (
+          <motion.div
+            key={d.date}
+            title={`${d.date}: ${d.calls}`}
+            initial={{ height: 0 }}
+            animate={{ height: `${Math.max(6, (d.calls / max) * 100)}%` }}
+            transition={{ delay: i * 0.02 }}
+            className={`flex-1 rounded-sm ${d.calls ? 'bg-gradient-to-t from-violet-600 to-cyan-400' : 'bg-white/10'}`}
+          />
+        ))}
+      </div>
+      <Link to="/settings?tab=usage" className="btn-ghost px-3 py-2 text-xs"><Cpu className="h-3.5 w-3.5" /> Usage details <ArrowRight className="h-3.5 w-3.5" /></Link>
     </section>
   )
 }

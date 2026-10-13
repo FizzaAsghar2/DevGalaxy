@@ -3,18 +3,18 @@ import { Link } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { motion } from 'framer-motion'
 import {
-  Activity, Ban, Crown, History, LayoutTemplate, Lock, Orbit, RefreshCw, Search, ShieldCheck, Trash2, UserCheck, Users,
+  Activity, Ban, Coins, History, LayoutTemplate, Lock, Orbit, RefreshCw, Search, ShieldCheck, Trash2, UserCheck, Users,
 } from 'lucide-react'
 import { useSession } from '../auth/AuthProvider'
 import { useAccount } from '../account/AccountProvider'
 import { isDemoMode } from '../lib/config'
 import { LoadingState } from '../components/ui/States'
+import { formatCents } from '../lib/usage'
 
 const TABS = [
   { key: 'overview', label: 'Overview', icon: Activity },
   { key: 'users', label: 'Users', icon: Users },
   { key: 'galaxies', label: 'Galaxies', icon: Orbit },
-  { key: 'plans', label: 'Plans', icon: Crown },
   { key: 'audit', label: 'Audit log', icon: History },
 ]
 
@@ -67,9 +67,9 @@ function Overview({ data }) {
         <Stat label="Galaxies" value={data.galaxies} icon={Orbit} tone="text-cyan-300" />
         <Stat label="Galaxies today" value={data.galaxiesToday} icon={Activity} tone="text-emerald-300" />
         <Stat label="UI previews" value={data.uiPreviews} icon={LayoutTemplate} tone="text-pink-300" />
-        <Stat label="Paid users" value={data.paidUsers} icon={Crown} tone="text-amber-300" />
-        <Stat label="Free users" value={data.freeUsers} icon={Users} tone="text-slate-300" />
-        <Stat label="Active subscriptions" value={data.activeSubscriptions} icon={ShieldCheck} tone="text-emerald-300" />
+        <Stat label="AI calls this month" value={data.monthCalls} icon={Activity} tone="text-cyan-300" />
+        <Stat label="Est. AI spend this month" value={formatCents(data.monthCents)} icon={Coins} tone="text-amber-300" />
+        <Stat label="Monthly AI budget" value={data.budgetCents == null ? 'Not set' : formatCents(data.budgetCents)} icon={ShieldCheck} tone="text-emerald-300" />
         <Stat label="Usage events" value={data.usageTotal} icon={Activity} />
       </div>
       <div className="grid gap-4 lg:grid-cols-2">
@@ -101,7 +101,7 @@ function Overview({ data }) {
   )
 }
 
-function UsersTab({ api, plans, selfId }) {
+function UsersTab({ api, selfId }) {
   const [q, setQ] = useState('')
   const [filter, setFilter] = useState('all')
   const [rows, setRows] = useState(null)
@@ -130,26 +130,21 @@ function UsersTab({ api, plans, selfId }) {
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search email, name or ID" className="flex-1 bg-transparent text-sm outline-none" />
         </label>
         <select value={filter} onChange={(e) => setFilter(e.target.value)} className="glass rounded-xl px-3 py-2 text-sm">
-          {['all', 'free', 'paid', 'admin', 'active', 'suspended'].map((f) => <option key={f} value={f} className="bg-void-900">{f}</option>)}
+          {['all', 'admin', 'active', 'suspended'].map((f) => <option key={f} value={f} className="bg-void-900">{f}</option>)}
         </select>
       </div>
       {!rows ? <LoadingState label="Loading users…" /> : (
         <div className="glass overflow-x-auto rounded-2xl">
           <table className="w-full min-w-[860px] text-left text-sm">
-            <thead className="text-[11px] uppercase tracking-wider text-slate-500"><tr>{['User', 'Role', 'Plan', 'Status', 'Galaxies', 'Usage', 'Joined', ''].map((h) => <th key={h} className="px-4 py-3 font-medium">{h}</th>)}</tr></thead>
+            <thead className="text-[11px] uppercase tracking-wider text-slate-500"><tr>{['User', 'Role', 'Status', 'Galaxies', 'Usage', 'Joined', ''].map((h) => <th key={h} className="px-4 py-3 font-medium">{h}</th>)}</tr></thead>
             <tbody className="divide-y divide-white/5">
               {rows.map((u) => (
                 <tr key={u.id}>
                   <td className="px-4 py-3"><p className="text-slate-100">{u.full_name || '—'}</p><p className="text-xs text-slate-500">{u.email ?? u.id}</p></td>
                   <td className="px-4 py-3">{u.role === 'admin' ? <span className="chip border-amber-300/30 text-amber-200">admin</span> : 'user'}</td>
-                  <td className="px-4 py-3">
-                    <select value={u.plan_id} onChange={(e) => act(u.id, 'change_plan', { planId: e.target.value })} className="rounded-lg border border-white/10 bg-void-900 px-2 py-1 text-xs">
-                      {plans.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                    </select>
-                  </td>
                   <td className="px-4 py-3"><span className={u.account_status === 'suspended' ? 'text-rose-300' : 'text-emerald-300'}>{u.account_status}</span></td>
                   <td className="px-4 py-3">{u.galaxy_count}</td>
-                  <td className="px-4 py-3 text-xs text-slate-400">{u.usage_count} events</td>
+                  <td className="px-4 py-3 text-xs text-slate-400">{u.usage_count} events · {formatCents(u.cost_cents)}</td>
                   <td className="px-4 py-3 text-xs text-slate-400">{new Date(u.created_at).toLocaleDateString()}</td>
                   <td className="px-4 py-3 text-right">
                     {u.id !== selfId && u.role !== 'admin' && (u.account_status === 'suspended'
@@ -217,68 +212,6 @@ function GalaxiesTab({ api }) {
   )
 }
 
-function PlanEditor({ plan, api, onSaved }) {
-  const [draft, setDraft] = useState(() => ({ ...plan, features: (plan.features ?? []).join('\n') }))
-  const num = (v) => (v === '' || v == null ? null : Number(v))
-  const save = async () => {
-    try {
-      await api('POST', {
-        resource: 'plan',
-        action: 'update',
-        planId: plan.id,
-        changes: {
-          name: draft.name,
-          tagline: draft.tagline,
-          price_cents: num(draft.price_cents),
-          billing_interval: draft.billing_interval || null,
-          galaxy_limit: num(draft.galaxy_limit),
-          ui_limit: num(draft.ui_limit),
-          regeneration_limit: num(draft.regeneration_limit),
-          features: draft.features.split('\n').map((f) => f.trim()).filter(Boolean),
-          is_active: draft.is_active,
-        },
-      })
-      toast.success(`${draft.name} saved`)
-      onSaved()
-    } catch (e) {
-      toast.error(e.message)
-    }
-  }
-  const field = (key, label, type = 'text') => (
-    <label className="block text-xs text-slate-400">
-      {label}
-      <input type={type} value={draft[key] ?? ''} onChange={(e) => setDraft({ ...draft, [key]: e.target.value })} className="mt-1 w-full rounded-lg border border-white/10 bg-void-900/70 px-2.5 py-1.5 text-sm text-slate-100" />
-    </label>
-  )
-  return (
-    <div className="glass rounded-2xl p-5">
-      <p className="label-muted">{plan.id}</p>
-      <div className="mt-3 grid gap-3 sm:grid-cols-2">
-        {field('name', 'Name')}
-        {field('tagline', 'Tagline')}
-        {field('price_cents', 'Price (cents, empty = not set)', 'number')}
-        <label className="block text-xs text-slate-400">Billing interval
-          <select value={draft.billing_interval ?? ''} onChange={(e) => setDraft({ ...draft, billing_interval: e.target.value })} className="mt-1 w-full rounded-lg border border-white/10 bg-void-900/70 px-2.5 py-1.5 text-sm">
-            <option value="">none</option><option value="month">month</option><option value="year">year</option>
-          </select>
-        </label>
-        {field('galaxy_limit', 'Galaxy limit (empty = unlimited)', 'number')}
-        {field('ui_limit', 'UI preview limit', 'number')}
-        {field('regeneration_limit', 'Regeneration / variation limit', 'number')}
-        <label className="flex items-center gap-2 text-xs text-slate-400"><input type="checkbox" checked={draft.is_active !== false} onChange={(e) => setDraft({ ...draft, is_active: e.target.checked })} /> Active</label>
-        <label className="block text-xs text-slate-400 sm:col-span-2">Features (one per line)
-          <textarea rows={4} value={draft.features} onChange={(e) => setDraft({ ...draft, features: e.target.value })} className="mt-1 w-full rounded-lg border border-white/10 bg-void-900/70 px-2.5 py-1.5 text-sm text-slate-100" />
-        </label>
-      </div>
-      <button type="button" onClick={save} className="btn-primary mt-4 px-4 py-2 text-xs">Save plan</button>
-    </div>
-  )
-}
-
-function PlansTab({ api, plans, reload }) {
-  return <div className="grid gap-4 lg:grid-cols-2">{plans.map((p) => <PlanEditor key={`${p.id}-${p.updated_at}`} plan={p} api={api} onSaved={reload} />)}</div>
-}
-
 function AuditTab({ api }) {
   const [logs, setLogs] = useState(null)
   useEffect(() => {
@@ -303,14 +236,11 @@ export default function Admin() {
   const api = useAdminApi()
   const [tab, setTab] = useState('overview')
   const [stats, setStats] = useState(null)
-  const [plans, setPlans] = useState([])
   const [denied, setDenied] = useState(null)
 
   const loadCore = useCallback(async () => {
     try {
-      const [s, p] = await Promise.all([api('GET', { resource: 'stats' }), api('GET', { resource: 'plans' })])
-      setStats(s)
-      setPlans(p.plans)
+      setStats(await api('GET', { resource: 'stats' }))
     } catch (e) {
       setDenied(e.message)
     }
@@ -344,9 +274,8 @@ export default function Admin() {
       </nav>
       <div className="mt-6">
         {tab === 'overview' && <Overview data={stats} />}
-        {tab === 'users' && <UsersTab api={api} plans={plans} selfId={account.user.id} />}
+        {tab === 'users' && <UsersTab api={api} selfId={account.user.id} />}
         {tab === 'galaxies' && <GalaxiesTab api={api} />}
-        {tab === 'plans' && <PlansTab api={api} plans={plans} reload={loadCore} />}
         {tab === 'audit' && <AuditTab api={api} />}
       </div>
     </div>

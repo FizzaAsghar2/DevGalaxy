@@ -5,6 +5,7 @@ import { Plus, Search } from 'lucide-react'
 import { useGalaxies } from '../hooks/useGalaxies'
 import GalaxyCard from '../components/galaxy/GalaxyCard'
 import Modal from '../components/ui/Modal'
+import WorkspaceModeChip from '../components/ui/WorkspaceModeChip'
 import { EmptyState, ErrorState, SkeletonCard } from '../components/ui/States'
 
 export default function MyGalaxies() {
@@ -58,7 +59,10 @@ export default function MyGalaxies() {
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="label-muted">Your universe</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="label-muted">My Workspace</p>
+            <WorkspaceModeChip />
+          </div>
           <h1 className="mt-1 font-display text-3xl sm:text-4xl">My Galaxies</h1>
         </div>
         <div className="flex items-center gap-2">

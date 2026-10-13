@@ -12,3 +12,5 @@ export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey)
  * a local session stands in for Clerk and localStorage stands in for Supabase.
  */
 export const isDemoMode = !isClerkConfigured || !isSupabaseConfigured
+
+export const sourceRepoUrl = (env.VITE_SOURCE_REPO_URL ?? 'https://github.com/FizzaAsghar2/DevGalaxy').replace(/\/$/, '')

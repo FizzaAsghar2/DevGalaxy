@@ -144,8 +144,8 @@ export default function Workspace({ demo = false }) {
     async (mode, options = {}) => {
       if (!galaxy) return false
       const action = UI_MODE_ACTION[mode]
-      // The public demo galaxy is generated in the browser and never counts against a plan.
-      if (!demo && !accountApi.ensure(action)) return false
+      // The public demo galaxy is generated in the browser and is never logged as AI usage.
+      if (!demo && !accountApi.ensure()) return false
       setUiBusy(true)
       try {
         const started = Date.now()
@@ -154,7 +154,7 @@ export default function Workspace({ demo = false }) {
         setUiSpec(result.ui)
         if (!demo) {
           await service.saveUi(galaxy.id, result.ui)
-          if (accountApi.account?.mode === 'demo') accountApi.recordDemoUsage(action)
+          if (accountApi.account?.mode === 'demo') accountApi.recordDemoUsage(action, result.source)
           else accountApi.refresh()
         }
         if (!uiPageId || !result.ui.uiPages.some((p) => p.id === uiPageId)) setUiPageId(result.ui.uiPages[0]?.id ?? null)
@@ -162,8 +162,8 @@ export default function Workspace({ demo = false }) {
         else toast.success(mode === 'variation' ? 'New design direction ready' : 'UI preview ready')
         return true
       } catch (err) {
-        if (err.code === 'upgrade_required') accountApi.showUpgrade(err.action ?? action)
-        else toast.error(err.message)
+        if (err.code === 'budget_reached') accountApi.refresh()
+        toast.error(err.message)
         return false
       } finally {
         setUiBusy(false)
@@ -196,11 +196,6 @@ export default function Workspace({ demo = false }) {
     },
     [focusCategory, layout],
   )
-
-  const lockedActions = useMemo(() => {
-    if (demo) return {}
-    return Object.fromEntries(Object.keys(UI_MODE_ACTION).map((mode) => [UI_MODE_ACTION[mode], !accountApi.entitlement(UI_MODE_ACTION[mode]).allowed]))
-  }, [accountApi, demo])
 
   const resetView = useCallback(() => {
     setFocus({ level: 1, categoryKey: null, nodeId: null, nodeLabel: null })
@@ -301,7 +296,6 @@ export default function Workspace({ demo = false }) {
               onPageChange={setUiPageId}
               onRun={runUi}
               onViewArchitecture={viewPageInArchitecture}
-              locked={lockedActions}
               projectName={architecture.projectName}
             />
           </Suspense>
@@ -372,6 +366,11 @@ export default function Workspace({ demo = false }) {
                   <Layers3 className="h-3.5 w-3.5" />
                   <span className="hidden lg:inline">{use3D ? '2D map' : '3D galaxy'}</span>
                 </button>
+                {demo && (
+                  <span className="chip border-amber-300/30 bg-amber-400/10 text-[11px] text-amber-100" title="Sample galaxy with simulated actions; nothing is saved">
+                    Explore Demo · sample data
+                  </span>
+                )}
                 <Link to={demo ? '/' : '/galaxies'} className="btn-ghost hidden px-2.5 py-1.5 text-xs sm:inline-flex">
                   <ArrowLeft className="h-3.5 w-3.5" />
                   <span className="hidden lg:inline">Galaxies</span>

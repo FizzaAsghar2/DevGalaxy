@@ -1,7 +1,7 @@
 import { isDemoMode } from '../lib/config'
 import { customizeLocalUi, generateLocalUi } from './localUi'
 import { normaliseUiSpec } from './uiSchema'
-import { UpgradeRequiredError, postJson } from './aiService'
+import { BudgetReachedError, postJson } from './aiService'
 
 export const UI_MODE_ACTION = {
   generate: 'UI_GENERATION',
@@ -22,7 +22,7 @@ function localBuild({ mode, galaxy, current, style, theme, instruction, pageId }
 
 /**
  * Generates or edits a galaxy's UI prototype via /api/generate-ui.
- * Managed mode: the server checks ownership + plan, calls the AI, and saves.
+ * Managed mode: the server checks ownership + AI budget, calls the AI, and saves.
  * Demo mode: the server (if running) or the browser generates statelessly.
  */
 export async function requestUi({ mode, galaxy, current, style = 'Auto', theme = 'Auto', instruction, pageId, getToken, offlineOnly = false }) {
@@ -42,7 +42,7 @@ export async function requestUi({ mode, galaxy, current, style = 'Auto', theme =
   }
   const payload = await response.json().catch(() => null)
   if (!response.ok) {
-    if (response.status === 402) throw new UpgradeRequiredError(payload?.action ?? UI_MODE_ACTION[mode], payload?.error)
+    if (response.status === 402) throw new BudgetReachedError(payload?.action ?? UI_MODE_ACTION[mode], payload?.error)
     if (isDemoMode && ![400, 401, 429].includes(response.status)) return localBuild({ mode, galaxy, current, style, theme, instruction, pageId })
     throw new Error(payload?.error ?? 'UI generation failed.')
   }

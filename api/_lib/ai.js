@@ -8,7 +8,7 @@ export function aiModel() {
   return process.env.AI_MODEL ?? 'gpt-4o-mini'
 }
 
-/** Calls an OpenAI-compatible chat completion and returns parsed JSON. */
+/** Calls an OpenAI-compatible chat completion; returns the parsed JSON and the reported token count. */
 export async function completeJson({ system, user, temperature = 0.6 }) {
   const baseUrl = (process.env.AI_BASE_URL ?? 'https://api.openai.com/v1').replace(/\/$/, '')
   const response = await fetch(`${baseUrl}/chat/completions`, {
@@ -32,5 +32,5 @@ export async function completeJson({ system, user, temperature = 0.6 }) {
   const payload = await response.json()
   const content = payload.choices?.[0]?.message?.content
   if (!content) throw new Error('ai_empty_response')
-  return extractJson(content)
+  return { data: extractJson(content), tokens: Number(payload.usage?.total_tokens) || null }
 }
