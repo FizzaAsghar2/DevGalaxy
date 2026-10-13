@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
-  ArrowLeft, Check, Crown, Loader2, Maximize2, Monitor, Orbit, Palette, RefreshCw, Shuffle, Smartphone, Sparkles, Tablet, Wand2, X,
+  ArrowLeft, Check, Loader2, Maximize2, Monitor, Orbit, Palette, RefreshCw, Shuffle, Smartphone, Sparkles, Tablet, Wand2, X,
 } from 'lucide-react'
 import { UI_STYLES, UI_THEMES } from '../../services/localUi'
 import PrototypeFrame from './PrototypeFrame'
@@ -97,7 +97,7 @@ function GenerationStages() {
   )
 }
 
-export default function UiPreview({ galaxy, spec, busy, pageId, onPageChange, onRun, onViewArchitecture, locked, projectName }) {
+export default function UiPreview({ galaxy, spec, busy, pageId, onPageChange, onRun, onViewArchitecture, projectName }) {
   const [device, setDevice] = useState('desktop')
   const [style, setStyle] = useState('Auto')
   const [theme, setTheme] = useState('Auto')
@@ -133,7 +133,6 @@ export default function UiPreview({ galaxy, spec, busy, pageId, onPageChange, on
               <Sparkles className="h-4 w-4" /> Generate UI
             </button>
           )}
-          {locked.UI_GENERATION && <p className="mt-3 flex items-center justify-center gap-1.5 text-xs text-amber-200/90"><Crown className="h-3.5 w-3.5" /> You&rsquo;ve used your free UI preview — upgrade to generate more.</p>}
         </motion.div>
       </div>
     )
@@ -154,14 +153,14 @@ export default function UiPreview({ galaxy, spec, busy, pageId, onPageChange, on
         <Select label="Style" value={style} options={UI_STYLES} onChange={setStyle} />
         <Select label="Theme" value={theme} options={UI_THEMES} onChange={setTheme} />
         <button type="button" disabled={busy} onClick={() => onRun('regenerate', { style, theme })} className="btn-ghost px-2.5 py-1.5 text-xs" title="Regenerate UI (keeps the architecture)">
-          <RefreshCw className={`h-3.5 w-3.5 ${busy ? 'animate-spin' : ''}`} /> <span className="hidden md:inline">Regenerate</span>{locked.UI_REGENERATION && <Crown className="h-3 w-3 text-amber-300" />}
+          <RefreshCw className={`h-3.5 w-3.5 ${busy ? 'animate-spin' : ''}`} /> <span className="hidden md:inline">Regenerate</span>
         </button>
         <button type="button" disabled={busy} onClick={() => onRun('variation', { style, theme })} className="btn-ghost px-2.5 py-1.5 text-xs" title="Try a different design direction">
-          <Shuffle className="h-3.5 w-3.5" /> <span className="hidden md:inline">Variation</span>{locked.DESIGN_VARIATION && <Crown className="h-3 w-3 text-amber-300" />}
+          <Shuffle className="h-3.5 w-3.5" /> <span className="hidden md:inline">Variation</span>
         </button>
         <form className="flex min-w-[200px] flex-1 items-center gap-1.5" onSubmit={(e) => { e.preventDefault(); if (instruction.trim()) onRun('customize', { instruction, pageId: current?.id }).then((ok) => ok && setInstruction('')) }}>
           <input value={instruction} onChange={(e) => setInstruction(e.target.value)} maxLength={500} placeholder={`Describe a change — e.g. “make it dark and purple”, “use a table on ${current?.name ?? 'this page'}”`} aria-label="Customise UI" className="min-w-0 flex-1 rounded-lg border border-white/10 bg-void-900/60 px-2.5 py-1.5 text-xs text-slate-200 placeholder:text-slate-500 focus:border-violet-400/50 focus:outline-none" />
-          <button type="submit" disabled={busy || !instruction.trim()} className="btn-primary px-2.5 py-1.5 text-xs disabled:opacity-50"><Wand2 className="h-3.5 w-3.5" />{locked.AI_UI_CUSTOMIZATION && <Crown className="h-3 w-3 text-amber-200" />}</button>
+          <button type="submit" disabled={busy || !instruction.trim()} className="btn-primary px-2.5 py-1.5 text-xs disabled:opacity-50"><Wand2 className="h-3.5 w-3.5" /></button>
         </form>
         <button type="button" onClick={() => setDesignOpen((v) => !v)} className="btn-ghost px-2.5 py-1.5 text-xs" aria-pressed={designOpen}><Palette className="h-3.5 w-3.5" /> <span className="hidden lg:inline">Design</span></button>
         <button type="button" onClick={() => setDemo(true)} className="btn-primary px-3 py-1.5 text-xs"><Maximize2 className="h-3.5 w-3.5" /> Open Demo</button>

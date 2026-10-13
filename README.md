@@ -43,7 +43,15 @@ The app is fully usable with **no credentials at all**:
   architecture from your idea (commerce, learning, health, social or generic SaaS), so different
   ideas still produce different galaxies
 
-A banner in the app makes it clear when demo mode is active. Add the environment variables below to
+A banner in the app makes it clear when demo mode is active.
+
+### Explore Demo vs My Workspace
+
+- **Explore Demo** (`/galaxy/demo`, “Explore Demo” in the navbar) is a sample galaxy with simulated
+  actions. It is labelled *Explore Demo · sample data*, saves nothing and shows no personal data.
+- **My Workspace** (`/dashboard`, `/galaxies`) holds your own galaxies. Without Clerk + Supabase it is
+  labelled *Demo · saved in this browser*; with them it shows *My Workspace · synced*.
+- **Settings → Workspace** lists which integrations (sign-in, storage, AI) are really connected. Add the environment variables below to
 switch each piece over to the real service.
 
 ## Environment variables
@@ -59,9 +67,11 @@ Copy `.env.example`. Only `VITE_`-prefixed variables reach the browser; the AI k
 | `AI_API_KEY` | server | OpenAI-compatible API key |
 | `AI_BASE_URL` | server | Defaults to `https://api.openai.com/v1` |
 | `AI_MODEL` | server | Defaults to `gpt-4o-mini` |
-| `SUPABASE_SERVICE_ROLE_KEY` | server | Roles, plans, usage and `/admin` (never expose) |
+| `SUPABASE_SERVICE_ROLE_KEY` | server | Roles, AI usage, `/admin` and source export (never expose) |
 | `SUPABASE_URL` | server | Optional; defaults to `VITE_SUPABASE_URL` |
-| `BILLING_PROVIDER`, `BILLING_WEBHOOK_SECRET` | server | Reserved for verified checkout webhooks |
+| `AI_MONTHLY_BUDGET_USD` | server | Optional monthly AI spend cap; AI calls are refused once reached |
+| `AI_USD_PER_MILLION_TOKENS` | server | Optional; converts provider-reported tokens into measured cost |
+| `VITE_SOURCE_REPO_URL` | client | Optional; repository used for the fallback “main branch .zip” link |
 
 ## Clerk setup
 
@@ -106,22 +116,34 @@ without one, the offline generator in `src/services/localUi.js` composes pages f
 full-screen **Open Demo**, style/theme selection, regenerate, design variations and natural-language edits
 (“make it dark and purple”, “use a table here”). Page nodes offer **View UI**; UI pages offer **View in Architecture**.
 
-## Plans, usage and admin
+## Personal use: AI usage and spend
 
-| Plan | Galaxies | UI previews | Regenerations / variations / AI edits |
-| ---- | -------- | ----------- | ------------------------------------- |
-| Free | 1 | 1 | — |
-| Pro  | 50 / period | 50 / period | 200 / period |
+DevGalaxy is a personal tool. There are **no subscription plans, pricing, payment gateways or customer
+billing**. Instead, every AI generation is recorded so you can control cost:
 
-Limits live in the `plans` table (editable in `/admin`). Every restricted request is checked **on the server
-before the AI provider is called**: `/api/generate` and `/api/generate-ui` verify the Clerk token, load the
-role, plan and usage with the Supabase service role, and reserve usage atomically via `reserve_usage()`
-(advisory lock, so parallel requests cannot exceed a limit). Saved galaxies and previews stay available
-after limits are reached. Browser state (localStorage, React state, edited JS) is never trusted for role,
-plan or ownership.
+- `/api/generate` and `/api/generate-ui` verify the Clerk token, then call `reserve_usage()`, which records a
+  usage event with an estimated cost (advisory lock, so parallel requests cannot overshoot the budget).
+- When the provider reports token usage, the event is updated with the token count and, if
+  `AI_USD_PER_MILLION_TOKENS` is set, the measured cost.
+- If `AI_MONTHLY_BUDGET_USD` is set and this month's spend has reached it, AI calls are refused with
+  `budget_reached` before the provider is called. Offline generations cost nothing and are never blocked.
+- **Settings → Usage & spend** shows this month's generations, estimated spend, budget, a 14-day chart,
+  per-action counts and recent activity. In demo mode the log lives in this browser and can be cleared.
 
-Without Clerk + Supabase (demo mode) the Free plan is simulated in the browser so the upgrade flow can
-be explored; demo mode has no Pro or admin access.
+Run `supabase/migrations/0003_personal_use.sql` after `0002` to drop the old plan/subscription tables and
+add `cost_cents`/`tokens` to `usage_events`.
+
+## Source code export
+
+**Settings → Export → Download Source Code (.zip)** calls `/api/export`, which streams a ZIP of the project
+built from an allow-list (`src/`, `api/`, `public/`, `supabase/`, README, AGENTS.md, `package.json`,
+lockfile, build config, `.env.example`). `.env*` files (except `.env.example`), keys, logs, database dumps,
+`.git`, `node_modules`, `dist` and caches are never included, and any file containing the value of a
+configured server secret is skipped. In managed mode only the owner (database role `admin`) can
+download; the request is rate-limited. If the in-app export is unavailable, the Export tab links to the
+repository's `main` branch ZIP instead.
+
+The archive extracts to `devgalaxy/` and runs with `npm install && npm run dev`.
 
 ### Making the administrator
 
@@ -135,19 +157,13 @@ update public.profiles set role = 'admin' where lower(email) = lower('fizzaasgha
 
 The profile email is taken from the verified Clerk account, so only that Clerk user can hold it.
 `/admin` (and every `/api/admin` call) returns 403 for anyone whose database role is not `admin`.
-Admin actions (plan changes, Pro grants, suspensions, galaxy deletions, plan edits) are written to
+Admin actions (suspensions, reactivations and galaxy deletions) are written to
 `admin_audit_logs`.
-
-### Payments
-
-Checkout is intentionally not faked. Until `BILLING_PROVIDER` and `BILLING_WEBHOOK_SECRET` are set and a
-verified webhook handler writes `subscriptions`, the Pro button explains that checkout is not connected;
-admins can grant Pro manually.
 
 ## Deploying to Vercel
 
-1. Import the repository at <https://vercel.com/new>. Vite is detected automatically and `api/generate.js`
-   becomes a serverless function.
+1. Import the repository at <https://vercel.com/new>. Vite is detected automatically and each file in `api/`
+   becomes a serverless function (`vercel.json` bundles the source files `api/export.js` needs).
 2. Add all environment variables from the table above (the `VITE_` ones plus the server-only ones).
 3. Deploy. `vercel.json` rewrites non-`/api` paths to `index.html` for client-side routing.
 
@@ -171,12 +187,13 @@ The 3D layer is designed to stay smooth on an ordinary laptop:
 ## Project structure
 
 ```
-api/generate.js              secure AI endpoint (server only)
+api/                         serverless API: generate, generate-ui, me, admin, export (server only)
+api/_lib/sourceZip.js        allow-listed, secret-free source ZIP builder
 src/auth/                    Clerk provider + local demo fallback
 src/components/three/        canvas, starfield, nebula, orbs, curved connections
 src/components/galaxy/       scene, 2D flow map, inspector, toolbar, rail, generation sequence
 src/components/landing/      hero scene + CSS fallback
-src/pages/                   landing, dashboard, create, my galaxies, workspace, 404
+src/pages/                   landing, dashboard, create, my galaxies, workspace, settings, admin, 404
 src/services/                AI client, schema validation, local generator, layout, persistence
 supabase/migrations/         schema + RLS
 ```

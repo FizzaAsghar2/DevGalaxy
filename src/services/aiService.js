@@ -2,10 +2,10 @@ import { isDemoMode } from '../lib/config'
 import { normaliseArchitecture, validateArchitecture } from './architectureSchema'
 import { generateLocalArchitecture } from './localArchitecture'
 
-export class UpgradeRequiredError extends Error {
+export class BudgetReachedError extends Error {
   constructor(action, message) {
-    super(message ?? 'Upgrade required.')
-    this.code = 'upgrade_required'
+    super(message ?? 'This month’s AI budget is used up.')
+    this.code = 'budget_reached'
     this.action = action
   }
 }
@@ -21,7 +21,7 @@ export async function postJson(url, body, getToken) {
 
 /**
  * Calls the secure `/api/generate` function. In managed mode the server checks
- * the plan, generates and saves the galaxy, so there is no client fallback.
+ * the AI budget, generates and saves the galaxy, so there is no client fallback.
  * In demo mode an unreachable endpoint falls back to the offline generator.
  */
 export async function generateArchitecture({ idea, appType, complexity, getToken }) {
@@ -41,7 +41,7 @@ export async function generateArchitecture({ idea, appType, complexity, getToken
 
   const payload = await response.json().catch(() => null)
   if (!response.ok) {
-    if (response.status === 402) throw new UpgradeRequiredError('GALAXY_GENERATION', payload?.error)
+    if (response.status === 402) throw new BudgetReachedError('GALAXY_GENERATION', payload?.error)
     if ([400, 401, 403, 409, 429].includes(response.status) || !isDemoMode) throw new Error(payload?.error ?? 'Generation failed.')
     return fallback()
   }

@@ -7,6 +7,7 @@ import { architectureStats } from '../services/architectureSchema'
 import GalaxyCard from '../components/galaxy/GalaxyCard'
 import { EmptyState, ErrorState, SkeletonCard } from '../components/ui/States'
 import UsagePanel from '../components/ui/UsagePanel'
+import WorkspaceModeChip from '../components/ui/WorkspaceModeChip'
 
 function StatTile({ icon: Icon, label, value }) {
   return (
@@ -46,7 +47,10 @@ export default function Dashboard() {
         className="flex flex-wrap items-end justify-between gap-4"
       >
         <div>
-          <p className="label-muted">Mission control</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="label-muted">My Workspace</p>
+            <WorkspaceModeChip />
+          </div>
           <h1 className="mt-1 font-display text-3xl sm:text-4xl">
             Welcome back, <span className="gradient-text">{firstName}</span>
           </h1>

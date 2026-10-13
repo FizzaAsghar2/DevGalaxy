@@ -8,7 +8,7 @@ import { useGalaxyService } from '../hooks/useGalaxies'
 import { useDeviceProfile } from '../hooks/useDeviceProfile'
 import { generateArchitecture } from '../services/aiService'
 import { useAccount } from '../account/AccountProvider'
-import PlanBadge from '../components/ui/PlanBadge'
+import WorkspaceModeChip from '../components/ui/WorkspaceModeChip'
 import GenerationSequence from '../components/galaxy/GenerationSequence'
 
 const APP_TYPES = ['Web app', 'Mobile app', 'SaaS platform', 'Marketplace', 'Internal tool', 'API service']
@@ -51,7 +51,7 @@ export default function CreateGalaxy() {
       return
     }
 
-    if (!accountApi.ensure('GALAXY_GENERATION')) return
+    if (!accountApi.ensure()) return
 
     setError(null)
     setGenerating(true)
@@ -73,16 +73,12 @@ export default function CreateGalaxy() {
           complexity,
           architecture,
         }))
-      if (accountApi.account?.mode === 'demo') accountApi.recordDemoUsage('GALAXY_GENERATION')
+      if (accountApi.account?.mode === 'demo') accountApi.recordDemoUsage('GALAXY_GENERATION', source)
       else accountApi.refresh()
       setReady(saved.id)
     } catch (err) {
       setGenerating(false)
-      if (err.code === 'upgrade_required') {
-        accountApi.refresh()
-        accountApi.showUpgrade('GALAXY_GENERATION')
-        return
-      }
+      if (err.code === 'budget_reached') accountApi.refresh()
       setError(err.message)
       toast.error(err.message)
     }
@@ -97,7 +93,7 @@ export default function CreateGalaxy() {
           <span className="chip bg-white/[0.06]">
             <Sparkles className="h-3.5 w-3.5 text-violet-300" /> New galaxy
           </span>
-          <PlanBadge />
+          <WorkspaceModeChip />
         </div>
         <h1 className="mt-4 font-display text-3xl sm:text-4xl">Describe the app you want to build.</h1>
         <p className="mt-2 text-slate-400">

@@ -8,8 +8,8 @@ export function DemoBanner() {
   return (
     <div className="border-b border-amber-300/15 bg-amber-300/[0.06] px-4 py-2 text-center text-[12px] text-amber-200/90">
       <Info className="mr-1.5 inline h-3.5 w-3.5 align-[-2px]" />
-      Demo mode — add Clerk, Supabase and AI keys in <code className="font-mono">.env</code> to enable real accounts,
-      cloud saves and AI generation.
+      Demo mode — sign-in is simulated and My Workspace is saved in this browser only. Add Clerk, Supabase and AI
+      keys in <code className="font-mono">.env</code> to connect real accounts, cloud saves and AI generation.
     </div>
   )
 }
