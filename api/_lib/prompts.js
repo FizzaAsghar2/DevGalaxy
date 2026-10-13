@@ -35,7 +35,8 @@ Return ONLY JSON:
     "secondaryColor": "#rrggbb", "accentColor": "#rrggbb", "backgroundColor": "#rrggbb", "surfaceColor": "#rrggbb",
     "textColor": "#rrggbb", "mutedColor": "#rrggbb", "fontStyle": "sans"|"serif"|"rounded"|"mono"|"display",
     "borderRadius": "none"|"small"|"medium"|"large"|"pill", "navigation": "topbar"|"sidebar",
-    "density": "compact"|"comfortable"|"spacious", "designReasoning": string },
+    "density": "compact"|"comfortable"|"spacious", "buttonStyle": "solid"|"pill"|"outline"|"gradient",
+    "cardStyle": "elevated"|"bordered"|"flat"|"glass", "typography": string, "designReasoning": string },
   "uiPages": [{ "name": string, "architecturePage": string, "purpose": string,
     "layout": "landing"|"browse"|"detail"|"focus"|"dashboard"|"split"|"stack"|"centered",
     "sections": [{ "type": SECTION_TYPE, "title": string, "subtitle": string, "variant": string,
@@ -47,10 +48,16 @@ Return ONLY JSON:
 }
 SECTION_TYPE is one of: hero, search, filters, cards, list, table, stats, chart, calendar, chat, timeline, kanban,
 gallery, profile, form, stepper, summary, feed, progress, tabs, leaderboard, map, upload, notifications, cta,
-session, auth, pricing, faq.
+session, auth, pricing, faq, testimonials, categories.
 Item conventions: stats items use label/value/change; chart items use label/value; chat items use author/text;
 kanban items are columns with title + cards; calendar items use day (1-30)/title/meta; progress items use title/value (0-100).
-Use 2-5 sections per page and vary layouts between pages — do not give every page the same cards/table/form.`
+Interactions are wired by the renderer from your labels: an action whose text equals another page's name navigates there;
+"Open"/"View" on a record opens the detail page with that record; actions like "Book now"/"Rent now"/"Request" open the
+booking/request page; a page with a stepper (variant "progress") plus a form becomes a multi-step flow whose last action confirms.
+Landing pages should feel like a real website (hero, categories, featured items, how-it-works stepper, testimonials, cta);
+detail pages should include a gallery header, tabs, and pricing packages/availability/reviews where they make sense.
+The app must have its own identity — do not reuse DevGalaxy's purple space look unless it truly fits.
+Use 2-6 sections per page and vary layouts between pages — do not give every page the same cards/table/form.`
 
 export const CUSTOMIZE_PROMPT = `You are editing an existing DevGalaxy UI prototype JSON. Apply the user's instruction and
 return the COMPLETE updated JSON in the same schema (uiDesign + uiPages). Keep everything the instruction does

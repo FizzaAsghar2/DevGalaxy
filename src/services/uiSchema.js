@@ -8,7 +8,7 @@
 export const SECTION_TYPES = [
   'hero', 'search', 'filters', 'cards', 'list', 'table', 'stats', 'chart', 'calendar', 'chat', 'timeline',
   'kanban', 'gallery', 'profile', 'form', 'stepper', 'summary', 'feed', 'progress', 'tabs', 'leaderboard',
-  'map', 'upload', 'notifications', 'cta', 'session', 'auth', 'pricing', 'faq',
+  'map', 'upload', 'notifications', 'cta', 'session', 'auth', 'pricing', 'faq', 'testimonials', 'categories',
 ]
 
 const SECTION_SET = new Set(SECTION_TYPES)
@@ -90,6 +90,9 @@ export function normaliseUiSpec(input, architecture) {
     navigation: ['topbar', 'sidebar'].includes(d.navigation) ? d.navigation : 'topbar',
     density: ['compact', 'comfortable', 'spacious'].includes(d.density) ? d.density : 'comfortable',
     iconStyle: str(d.iconStyle, 'outline', 30),
+    buttonStyle: ['solid', 'pill', 'outline', 'gradient'].includes(d.buttonStyle) ? d.buttonStyle : 'solid',
+    cardStyle: ['elevated', 'bordered', 'flat', 'glass'].includes(d.cardStyle) ? d.cardStyle : 'bordered',
+    typography: str(d.typography, '', 80),
     designReasoning: str(d.designReasoning, '', 400),
   }
 
