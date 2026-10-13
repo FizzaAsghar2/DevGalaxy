@@ -12,6 +12,8 @@ const CreateGalaxy = lazy(() => import('./pages/CreateGalaxy'))
 const MyGalaxies = lazy(() => import('./pages/MyGalaxies'))
 const Workspace = lazy(() => import('./pages/Workspace'))
 const NotFound = lazy(() => import('./pages/NotFound'))
+const Pricing = lazy(() => import('./pages/Pricing'))
+const Admin = lazy(() => import('./pages/Admin'))
 
 export default function App() {
   return (
@@ -40,6 +42,15 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <MyGalaxies />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="/pricing" element={<Pricing />} />
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute>
+                <Admin />
               </ProtectedRoute>
             }
           />

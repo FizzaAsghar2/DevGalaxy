@@ -6,6 +6,7 @@ import Nebula from '../three/Nebula'
 import Starfield from '../three/Starfield'
 import { Connection, OrbitRing } from '../three/Connections'
 import { Planet, ProjectCore } from '../three/Orbs'
+import { useHtmlPortal } from '../three/htmlPortal'
 import { qualityFor } from '../../hooks/useDeviceProfile'
 
 const CORE_POSITION = [0, 0, 0]
@@ -30,6 +31,8 @@ function CameraRig({ layout, focus, presentation, reducedMotion, commands, onFit
   const desired = useMemo(() => focusTarget(layout, focus), [layout, focus])
   const targetVec = useRef(new THREE.Vector3(...CORE_POSITION))
   const posVec = useRef(new THREE.Vector3())
+  // Once the viewer orbits, pans or dollies, the rig stops steering until the focus changes.
+  const manual = useRef(false)
 
   useEffect(() => {
     if (!commands) return undefined
@@ -39,18 +42,28 @@ function CameraRig({ layout, focus, presentation, reducedMotion, commands, onFit
       const offset = camera.position.clone().sub(controlsTarget)
       const distance = THREE.MathUtils.clamp(offset.length() * factor, 3, 48)
       camera.position.copy(controlsTarget.clone().add(offset.setLength(distance)))
+      manual.current = true
       controls.current?.update()
     }
 
-    commands.current = {
+    const api = {
       zoomIn: () => dolly(0.78),
       zoomOut: () => dolly(1.28),
-      fit: () => onFitRequest?.(),
+      fit: () => {
+        manual.current = false
+        onFitRequest?.()
+      },
     }
+    commands.current = api
     return () => {
-      commands.current = null
+      // Only clear our own registration: the other renderer may already own the ref.
+      if (commands.current === api) commands.current = null
     }
   }, [camera, commands, onFitRequest])
+
+  useEffect(() => {
+    manual.current = false
+  }, [desired])
 
   useEffect(() => {
     if (!reducedMotion) return
@@ -76,12 +89,14 @@ function CameraRig({ layout, focus, presentation, reducedMotion, commands, onFit
     )
 
     const lerp = Math.min(1, delta * (reducedMotion ? 12 : 2.2))
-    controls.current.target.lerp(targetVec.current, lerp)
 
-    // Only steer the camera while flying to a new focus or auto-orbiting, so the
-    // user keeps full manual control once the transition has settled.
+    // Only steer while flying to a new focus or auto-orbiting, so the viewer keeps
+    // full manual control once the transition has settled or they took over.
     const settled = camera.position.distanceTo(posVec.current) < 0.25
-    if (presentation || !settled) camera.position.lerp(posVec.current, lerp)
+    if (presentation || (!manual.current && !settled)) {
+      controls.current.target.lerp(targetVec.current, lerp)
+      camera.position.lerp(posVec.current, lerp)
+    }
 
     controls.current.update()
   })
@@ -92,6 +107,9 @@ function CameraRig({ layout, focus, presentation, reducedMotion, commands, onFit
       enablePan={!presentation}
       enableDamping
       dampingFactor={0.08}
+      onStart={() => {
+        manual.current = true
+      }}
       rotateSpeed={0.55}
       zoomSpeed={0.7}
       minDistance={3}
@@ -103,8 +121,16 @@ function CameraRig({ layout, focus, presentation, reducedMotion, commands, onFit
 }
 
 function NodeLabel({ position, children, color, muted = false, size = 'base' }) {
+  const portal = useHtmlPortal()
   return (
-    <Html position={position} center distanceFactor={14} zIndexRange={[20, 0]} style={{ pointerEvents: 'none' }}>
+    <Html
+      portal={portal}
+      position={position}
+      center
+      distanceFactor={14}
+      zIndexRange={[20, 0]}
+      style={{ pointerEvents: 'none' }}
+    >
       <div
         className={`whitespace-nowrap rounded-full border px-2.5 py-1 font-display backdrop-blur-sm transition-opacity ${
           size === 'lg' ? 'text-[13px]' : 'text-[11px]'

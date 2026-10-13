@@ -131,3 +131,22 @@
     scroll-behavior: auto !important;
   }
 }
+
+.prototype h1,
+.prototype h2,
+.prototype h3,
+.prototype h4 {
+  color: inherit;
+  font-family: var(--p-display);
+  letter-spacing: -0.01em;
+}
+
+.prototype .p-display {
+  font-family: var(--p-display);
+}
+
+.prototype input::placeholder,
+.prototype textarea::placeholder {
+  color: var(--p-muted);
+  opacity: 0.8;
+}

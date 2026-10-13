@@ -1,5 +1,6 @@
 import { getSupabaseClient } from '../lib/supabaseClient'
 import { normaliseArchitecture } from './architectureSchema'
+import { normaliseUiSpec } from './uiSchema'
 
 /**
  * Galaxy persistence. Supabase is the real backend (ownership enforced by RLS);
@@ -9,9 +10,13 @@ import { normaliseArchitecture } from './architectureSchema'
 const STORAGE_KEY = 'devgalaxy:galaxies'
 
 function hydrate(row) {
+  const architecture = normaliseArchitecture(row.architecture_data, row.project_name)
+  // The row name is authoritative: renaming a galaxy must not leave a stale title inside the architecture.
+  const architectureData = { ...architecture, projectName: row.project_name || architecture.projectName }
   return {
     ...row,
-    architecture_data: normaliseArchitecture(row.architecture_data, row.project_name),
+    architecture_data: architectureData,
+    ui_data: row.ui_data ? normaliseUiSpec(row.ui_data, architectureData) : null,
   }
 }
 
@@ -117,5 +122,11 @@ export function createGalaxyService({ userId, getToken, useSupabase }) {
     if (error) throw new Error(error.message)
   }
 
-  return { list, get, create, rename, remove }
+  /** Local mode only: in managed mode the UI is saved by /api/generate-ui. */
+  async function saveUi(id, ui) {
+    if (supabase) return
+    writeLocal(allLocal().map((row) => (row.id === id && row.user_id === userId ? { ...row, ui_data: ui, updated_at: new Date().toISOString() } : row)))
+  }
+
+  return { list, get, create, rename, remove, saveUi, hydrate }
 }

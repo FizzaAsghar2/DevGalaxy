@@ -6,6 +6,7 @@ import { useGalaxies } from '../hooks/useGalaxies'
 import { architectureStats } from '../services/architectureSchema'
 import GalaxyCard from '../components/galaxy/GalaxyCard'
 import { EmptyState, ErrorState, SkeletonCard } from '../components/ui/States'
+import UsagePanel from '../components/ui/UsagePanel'
 
 function StatTile({ icon: Icon, label, value }) {
   return (
@@ -66,6 +67,8 @@ export default function Dashboard() {
         <StatTile icon={Database} label="Tables designed" value={totals.tables} />
         <StatTile icon={Layers} label="Features mapped" value={totals.features} />
       </div>
+
+      <UsagePanel />
 
       <section className="mt-10">
         <div className="flex items-center justify-between">
