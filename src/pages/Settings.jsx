@@ -55,9 +55,11 @@ function UsageTab() {
         <Card title="Generations · last 14 days">
           <div className="flex h-40 items-end gap-1.5">
             {usage.series.map((d, i) => (
-              <div key={d.date} className="group flex flex-1 flex-col items-center gap-1">
+              <div key={d.date} className="group flex h-full flex-1 flex-col items-center gap-1">
                 <span className="text-[10px] text-slate-400 opacity-0 transition group-hover:opacity-100">{d.calls}</span>
+                <div className="flex w-full flex-1 items-end">
                 <motion.div initial={{ height: 0 }} animate={{ height: `${Math.max(4, (d.calls / max) * 100)}%` }} transition={{ delay: i * 0.03 }} className={`w-full rounded-md ${d.calls ? 'bg-gradient-to-t from-violet-600 to-cyan-400' : 'bg-white/10'}`} title={`${d.date}: ${d.calls} · ${formatCents(d.cents)}`} />
+                </div>
                 <span className="text-[9px] text-slate-500">{d.date.slice(8)}</span>
               </div>
             ))}

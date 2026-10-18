@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, NavLink, useNavigate } from 'react-router-dom'
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { LogOut, Menu, Settings, ShieldCheck, Sparkles, X } from 'lucide-react'
 import { useAccount } from '../../account/AccountProvider'
 import { useSession } from '../../auth/AuthProvider'
@@ -32,6 +32,8 @@ export default function Navbar() {
   const { isSignedIn, user, signIn, signUp, signOut, openProfile, mode } = useSession()
   const [open, setOpen] = useState(false)
   const navigate = useNavigate()
+  const location = useLocation()
+  const signInTarget = location.state?.from ?? '/dashboard'
   const { isAdmin } = useAccount()
 
   // Admin visibility comes from /api/me (database role). The /api/admin endpoints re-check it on every call.
@@ -85,7 +87,7 @@ export default function Navbar() {
             </>
           ) : (
             <>
-              <button type="button" className="btn-ghost" onClick={() => signIn('/dashboard')}>
+              <button type="button" className="btn-ghost" onClick={() => signIn(signInTarget)}>
                 Sign In
               </button>
               <button type="button" className="btn-primary" onClick={() => signUp('/dashboard')}>
@@ -139,7 +141,7 @@ export default function Navbar() {
               </>
             ) : (
               <>
-                <button type="button" className="btn-ghost" onClick={() => signIn('/dashboard')}>
+                <button type="button" className="btn-ghost" onClick={() => signIn(signInTarget)}>
                   Sign In
                 </button>
                 <button type="button" className="btn-primary" onClick={() => signUp('/dashboard')}>
