@@ -1,4 +1,5 @@
-import { Outlet } from 'react-router-dom'
+import { useEffect } from 'react'
+import { Outlet, useLocation } from 'react-router-dom'
 import { Info } from 'lucide-react'
 import Navbar from './Navbar'
 import { isDemoMode } from '../../lib/config'
@@ -14,7 +15,27 @@ export function DemoBanner() {
   )
 }
 
+/** Scrolls to `#section` targets after navigation, waiting for lazily loaded pages to render them. */
+function useHashScroll() {
+  const { pathname, hash, key } = useLocation()
+  useEffect(() => {
+    if (!hash) return undefined
+    let frame
+    let tries = 0
+    const attempt = () => {
+      const target = document.getElementById(decodeURIComponent(hash.slice(1)))
+      if (target) {
+        const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+        target.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' })
+      } else if (tries++ < 60) frame = requestAnimationFrame(attempt)
+    }
+    attempt()
+    return () => cancelAnimationFrame(frame)
+  }, [pathname, hash, key])
+}
+
 export default function AppLayout() {
+  useHashScroll()
   return (
     <div className="flex min-h-full flex-col">
       <DemoBanner />
