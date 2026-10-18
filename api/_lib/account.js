@@ -1,11 +1,12 @@
 import { createClerkClient, verifyToken } from '@clerk/backend'
 import { createClient } from '@supabase/supabase-js'
-import { DEFAULT_PLANS, USAGE_ACTIONS, decideEntitlement } from '../../src/lib/plans.js'
+import { decideBudget, estimateCents, monthStart, tokenCostCents } from '../../src/lib/usage.js'
+import { isAiConfigured } from './ai.js'
 
 /**
- * Server-side identity, plan and usage. Nothing here trusts the browser: the
- * user id comes from a verified Clerk token, role/status from `profiles`, and
- * the plan from `subscriptions` — all read with the server-only service key.
+ * Server-side identity, role and AI usage. Nothing here trusts the browser: the
+ * user id comes from a verified Clerk token and role/status from `profiles`,
+ * both read with the server-only service key.
  */
 
 let adminDb = null
@@ -77,69 +78,55 @@ async function ensureProfile(userId) {
   return again
 }
 
-export async function loadPlans() {
-  const { data, error } = await db().from('plans').select('*').order('sort_order')
-  if (error || !data?.length) return DEFAULT_PLANS
-  return data
+export function monthlyBudgetCents() {
+  const usd = Number(process.env.AI_MONTHLY_BUDGET_USD)
+  return Number.isFinite(usd) && usd >= 0 && process.env.AI_MONTHLY_BUDGET_USD !== '' ? Math.round(usd * 100) : null
+}
+
+async function spentThisMonthCents() {
+  const { data } = await db().from('usage_events').select('cost_cents').gte('created_at', monthStart())
+  return (data ?? []).reduce((sum, row) => sum + (row.cost_cents ?? 0), 0)
 }
 
 export async function loadAccount(userId) {
   const profile = await ensureProfile(userId)
-  const plans = await loadPlans()
-  const nowIso = new Date().toISOString()
-  const { data: subscription } = await db()
-    .from('subscriptions')
-    .select('*')
-    .eq('user_id', userId)
-    .in('status', ['active', 'trialing'])
-    .or(`current_period_end.is.null,current_period_end.gt.${nowIso}`)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
-
-  const planId = subscription?.plan_id ?? 'free'
-  const plan = plans.find((p) => p.id === planId) ?? plans.find((p) => p.id === 'free') ?? DEFAULT_PLANS[0]
-  // Free allowances are lifetime; paid allowances reset each billing period.
-  const periodStart = subscription && planId !== 'free' ? subscription.current_period_start : null
-
-  let query = db().from('usage_events').select('action_type').eq('user_id', userId)
-  if (periodStart) query = query.gte('created_at', periodStart)
-  const { data: events } = await query
-  const usage = Object.fromEntries(Object.keys(USAGE_ACTIONS).map((key) => [key, 0]))
-  for (const event of events ?? []) usage[event.action_type] = (usage[event.action_type] ?? 0) + 1
-
-  return { profile, plan, plans, subscription: subscription ?? null, usage, periodStart }
+  const since = new Date(Date.now() - 31 * 864e5).toISOString()
+  const [{ data: events }, spentCents] = await Promise.all([
+    db().from('usage_events').select('action_type, cost_cents, tokens, created_at, metadata').eq('user_id', userId).gte('created_at', since).order('created_at', { ascending: false }).limit(500),
+    spentThisMonthCents(),
+  ])
+  return { profile, events: (events ?? []).map(({ metadata, ...e }) => ({ ...e, source: metadata?.source ?? null })), spentCents }
 }
 
-export function entitlementFor(account, action) {
-  return decideEntitlement({ role: account.profile.role, status: account.profile.account_status, plan: account.plan, usage: account.usage, action })
+export function budgetFor(account) {
+  return decideBudget({ status: account.profile.account_status, spentCents: account.spentCents, budgetCents: monthlyBudgetCents(), ai: isAiConfigured() })
 }
 
 /**
- * Atomically reserves one unit of usage in Postgres (advisory-locked per user).
- * Returns the usage event id, or throws { code: 'upgrade_required' }.
+ * Atomically records one usage event in Postgres (advisory-locked) with its
+ * estimated cost, refusing when the monthly AI budget is already spent.
+ * Returns the event id, or throws { code: 'budget_reached' | 'suspended' }.
  */
 export async function reserveUsage(account, action, galaxyId = null) {
-  const decision = entitlementFor(account, action)
+  const decision = budgetFor(account)
   if (!decision.allowed) {
     const error = new Error(decision.reason)
     error.code = decision.reason
     throw error
   }
-  const limitKey = USAGE_ACTIONS[action].limit
-  const pool = Object.entries(USAGE_ACTIONS).filter(([, spec]) => spec.limit === limitKey).map(([key]) => key)
+  const ai = isAiConfigured()
   const { data, error } = await db().rpc('reserve_usage', {
     p_user_id: account.profile.id,
     p_action: action,
-    p_pool: pool,
-    p_limit: decision.unlimited ? null : decision.limit,
-    p_since: account.periodStart,
+    p_cost_cents: estimateCents(action, ai),
+    p_budget_cents: ai ? monthlyBudgetCents() : null,
+    p_since: monthStart(),
     p_galaxy_id: galaxyId,
   })
   if (error) {
-    const limitError = new Error(/usage_limit_reached/.test(error.message) ? 'upgrade_required' : 'usage_error')
-    limitError.code = limitError.message
-    throw limitError
+    const budgetError = new Error(/budget_reached/.test(error.message) ? 'budget_reached' : 'usage_error')
+    budgetError.code = budgetError.message
+    throw budgetError
   }
   return data
 }
@@ -148,12 +135,20 @@ export async function releaseUsage(eventId) {
   if (eventId) await db().from('usage_events').delete().eq('id', eventId)
 }
 
-export async function attachUsage(eventId, galaxyId, metadata = {}) {
-  if (eventId) await db().from('usage_events').update({ galaxy_id: galaxyId, metadata }).eq('id', eventId)
+/** Stores metadata and, when the provider reported tokens, the measured token count and cost. */
+export async function attachUsage(eventId, galaxyId, metadata = {}, tokens = null) {
+  if (!eventId) return
+  const changes = { galaxy_id: galaxyId, metadata }
+  if (tokens) {
+    changes.tokens = tokens
+    const measured = tokenCostCents(tokens, Number(process.env.AI_USD_PER_MILLION_TOKENS))
+    if (measured != null) changes.cost_cents = measured
+  }
+  await db().from('usage_events').update(changes).eq('id', eventId)
 }
 
 export function summariseAccount(account) {
-  const entitlements = Object.fromEntries(Object.keys(USAGE_ACTIONS).map((action) => [action, entitlementFor(account, action)]))
+  const isAdmin = account.profile.role === 'admin'
   return {
     mode: 'managed',
     user: {
@@ -163,14 +158,14 @@ export function summariseAccount(account) {
       role: account.profile.role,
       status: account.profile.account_status,
     },
-    plan: account.plan,
-    plans: account.plans.filter((p) => p.is_active !== false),
-    subscription: account.subscription
-      ? { status: account.subscription.status, provider: account.subscription.provider, current_period_end: account.subscription.current_period_end }
-      : null,
-    usage: account.usage,
-    entitlements,
-    billingConfigured: Boolean(process.env.BILLING_PROVIDER && process.env.BILLING_WEBHOOK_SECRET),
+    events: account.events,
+    aiConfigured: isAiConfigured(),
+    budget: {
+      ...budgetFor(account),
+      budgetCents: monthlyBudgetCents(),
+      // Total AI spend across the workspace is shown to the owner only.
+      spentCents: isAdmin ? account.spentCents : null,
+    },
   }
 }
 

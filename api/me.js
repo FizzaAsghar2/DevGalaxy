@@ -1,13 +1,14 @@
 import { isManaged, requireAccount, summariseAccount } from './_lib/account.js'
+import { isAiConfigured } from './_lib/ai.js'
 import { send } from './_lib/http.js'
 
-/** Returns the caller's server-verified role, plan, usage and entitlements. */
+/** Returns the caller's server-verified role, AI usage and budget status. */
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
     res.setHeader('Allow', 'GET')
     return send(res, 405, { error: 'Method not allowed' })
   }
-  if (!isManaged()) return send(res, 200, { mode: 'unmanaged' })
+  if (!isManaged()) return send(res, 200, { mode: 'unmanaged', aiConfigured: isAiConfigured() })
   try {
     const account = await requireAccount(req, res)
     if (!account) return undefined

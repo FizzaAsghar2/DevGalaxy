@@ -7,9 +7,9 @@ import { generateLocalArchitecture } from '../src/services/localArchitecture.js'
 
 /**
  * Architecture generation (Vercel serverless function).
- * Order matters: authenticate → load plan → reserve usage → call AI → save.
- * The AI provider is never called for a user without remaining allowance, and
- * in managed mode the galaxy is saved here so each one maps to a usage event.
+ * Order matters: authenticate → check the monthly AI budget → reserve usage → call AI → save.
+ * The AI provider is never called once the budget is spent, and in managed
+ * mode the galaxy is saved here so each one maps to a usage event.
  */
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -51,17 +51,21 @@ export default async function handler(req, res) {
     try {
       if (account) eventId = await reserveUsage(account, 'GALAXY_GENERATION')
     } catch (error) {
-      return { status: error.code === 'upgrade_required' ? 402 : 500, body: error.code === 'upgrade_required' ? { error: 'You have used your free galaxy.', code: 'upgrade_required', action: 'GALAXY_GENERATION' } : { error: 'Could not check your plan.' } }
+      return error.code === 'budget_reached'
+        ? { status: 402, body: { error: 'This month’s AI budget is used up. Raise AI_MONTHLY_BUDGET_USD or wait until next month.', code: 'budget_reached', action: 'GALAXY_GENERATION' } }
+        : { status: 500, body: { error: 'Could not record AI usage.' } }
     }
 
     try {
       let architecture
       let source = 'ai'
+      let tokens = null
       if (isAiConfigured()) {
-        const raw = await completeJson({
+        const { data: raw, tokens: used } = await completeJson({
           system: ARCHITECTURE_PROMPT,
           user: `Application type: ${appType}\nComplexity: ${complexity} (${COMPLEXITY_HINT[complexity]})\nIdea: ${idea}`,
         })
+        tokens = used
         architecture = normaliseArchitecture(raw, 'Untitled Project')
         if (!validateArchitecture(architecture).valid) throw new Error('ai_invalid_architecture')
       } else {
@@ -87,12 +91,12 @@ export default async function handler(req, res) {
         .select('*')
         .single()
       if (error) throw error
-      await attachUsage(eventId, galaxy.id, meta)
+      await attachUsage(eventId, galaxy.id, meta, tokens)
       return { status: 200, body: { architecture, source, galaxy } }
     } catch (error) {
       console.error('generation failed', error?.message ?? error)
       await releaseUsage(eventId)
-      return { status: 502, body: { error: 'Could not generate an architecture right now. Your allowance was not used.' } }
+      return { status: 502, body: { error: 'Could not generate an architecture right now. Nothing was charged to your AI budget.' } }
     }
   })
 

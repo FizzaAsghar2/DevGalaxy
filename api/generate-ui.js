@@ -21,10 +21,10 @@ const ACTION_FOR_MODE = {
 async function buildUi({ mode, architecture, idea, current, style, theme, instruction, pageId }) {
   const variant = mode === 'variation' ? (current?.variant ?? 0) + 1 : mode === 'regenerate' ? (current?.variant ?? 0) : 0
   if (!isAiConfigured()) {
-    if (mode === 'customize') return { spec: customizeLocalUi(current, instruction, { pageId }).spec, source: 'demo' }
-    return { spec: generateLocalUi(architecture, idea, { style, theme, variant }), source: 'demo' }
+    if (mode === 'customize') return { spec: customizeLocalUi(current, instruction, { pageId }).spec, source: 'demo', tokens: null }
+    return { spec: generateLocalUi(architecture, idea, { style, theme, variant }), source: 'demo', tokens: null }
   }
-  const raw =
+  const { data: raw, tokens } =
     mode === 'customize'
       ? await completeJson({
           system: CUSTOMIZE_PROMPT,
@@ -38,7 +38,7 @@ async function buildUi({ mode, architecture, idea, current, style, theme, instru
         })
   const spec = normaliseUiSpec({ ...raw, variant, source: 'ai' }, architecture)
   if (!validateUiSpec(spec)) throw new Error('ai_invalid_ui')
-  return { spec, source: 'ai' }
+  return { spec, source: 'ai', tokens }
 }
 
 export default async function handler(req, res) {
@@ -108,20 +108,20 @@ export default async function handler(req, res) {
     try {
       eventId = await reserveUsage(account, action, galaxy.id)
     } catch (error) {
-      return error.code === 'upgrade_required'
-        ? { status: 402, body: { error: 'Upgrade to Pro to keep designing.', code: 'upgrade_required', action } }
-        : { status: 500, body: { error: 'Could not check your plan.' } }
+      return error.code === 'budget_reached'
+        ? { status: 402, body: { error: 'This month’s AI budget is used up. Raise AI_MONTHLY_BUDGET_USD or wait until next month.', code: 'budget_reached', action } }
+        : { status: 500, body: { error: 'Could not record AI usage.' } }
     }
     try {
-      const { spec, source } = await buildUi({ mode, architecture, idea: galaxy.original_idea, current, style, theme, instruction, pageId })
+      const { spec, source, tokens } = await buildUi({ mode, architecture, idea: galaxy.original_idea, current, style, theme, instruction, pageId })
       const { error } = await db().from('galaxies').update({ ui_data: spec }).eq('id', galaxy.id).eq('user_id', account.profile.id)
       if (error) throw error
-      await attachUsage(eventId, galaxy.id, { source, model: source === 'ai' ? aiModel() : null, mode, style, theme })
+      await attachUsage(eventId, galaxy.id, { source, model: source === 'ai' ? aiModel() : null, mode, style, theme }, tokens)
       return { status: 200, body: { ui: spec, source, action } }
     } catch (error) {
       console.error('ui generation failed', error?.message ?? error)
       await releaseUsage(eventId)
-      return { status: 502, body: { error: 'Could not generate the UI right now. Your allowance was not used.' } }
+      return { status: 502, body: { error: 'Could not generate the UI right now. Nothing was charged to your AI budget.' } }
     }
   })
   if (run.busy) return send(res, 409, { error: 'A UI generation is already running.', code: 'in_progress' })

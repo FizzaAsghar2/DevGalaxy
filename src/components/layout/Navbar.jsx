@@ -1,16 +1,16 @@
 import { useState } from 'react'
-import { Link, NavLink, useNavigate } from 'react-router-dom'
-import { LogOut, Menu, ShieldCheck, Sparkles, X } from 'lucide-react'
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
+import { LogOut, Menu, Settings, ShieldCheck, Sparkles, X } from 'lucide-react'
 import { useAccount } from '../../account/AccountProvider'
-import PlanBadge from '../ui/PlanBadge'
 import { useSession } from '../../auth/AuthProvider'
 
 const LINKS = [
   { to: '/', label: 'Home' },
   { to: '/#features', label: 'Features' },
   { to: '/#how-it-works', label: 'How It Works' },
-  { to: '/pricing', label: 'Pricing' },
-  { to: '/galaxies', label: 'My Galaxies', protected: true },
+  { to: '/galaxy/demo', label: 'Explore Demo' },
+  { to: '/galaxies', label: 'My Workspace', protected: true },
+  { to: '/settings', label: 'Settings', protected: true },
   { to: '/admin', label: 'Admin', protected: true, admin: true },
 ]
 
@@ -32,6 +32,8 @@ export default function Navbar() {
   const { isSignedIn, user, signIn, signUp, signOut, openProfile, mode } = useSession()
   const [open, setOpen] = useState(false)
   const navigate = useNavigate()
+  const location = useLocation()
+  const signInTarget = location.state?.from ?? '/dashboard'
   const { isAdmin } = useAccount()
 
   // Admin visibility comes from /api/me (database role). The /api/admin endpoints re-check it on every call.
@@ -53,6 +55,7 @@ export default function Navbar() {
                 }`
               }
             >
+              {link.to === '/settings' && <Settings className="mr-1 inline h-3.5 w-3.5" />}
               {link.admin && <ShieldCheck className="mr-1 inline h-3.5 w-3.5 text-amber-300" />}
               {link.label}
             </NavLink>
@@ -62,7 +65,6 @@ export default function Navbar() {
         <div className="hidden items-center gap-2 md:flex">
           {isSignedIn ? (
             <>
-              <PlanBadge compact />
               <button type="button" className="btn-primary" onClick={() => navigate('/create')}>
                 <Sparkles className="h-4 w-4" /> Create Galaxy
               </button>
@@ -85,7 +87,7 @@ export default function Navbar() {
             </>
           ) : (
             <>
-              <button type="button" className="btn-ghost" onClick={() => signIn('/dashboard')}>
+              <button type="button" className="btn-ghost" onClick={() => signIn(signInTarget)}>
                 Sign In
               </button>
               <button type="button" className="btn-primary" onClick={() => signUp('/dashboard')}>
@@ -139,7 +141,7 @@ export default function Navbar() {
               </>
             ) : (
               <>
-                <button type="button" className="btn-ghost" onClick={() => signIn('/dashboard')}>
+                <button type="button" className="btn-ghost" onClick={() => signIn(signInTarget)}>
                   Sign In
                 </button>
                 <button type="button" className="btn-primary" onClick={() => signUp('/dashboard')}>
