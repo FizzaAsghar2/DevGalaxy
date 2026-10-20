@@ -8,7 +8,7 @@
 /**
  * @typedef {import('./core/paths.js').ProjectFile} ProjectFile
  * @typedef {import('./core/spec.js').SiteSpec} SiteSpec
- * @typedef {{ id: string, createdAt: string, summary: string, spec: SiteSpec, files: ProjectFile[], buildStatus: 'ok' | 'failed' | 'unknown', source: 'ai' | 'offline' | 'manual' | 'restore', errors?: string[] }} Version
+ * @typedef {{ id: string, createdAt: string, summary: string, spec: SiteSpec, files: ProjectFile[], buildStatus: 'ok' | 'failed' | 'unknown', source: 'ai' | 'offline' | 'manual' | 'restore', errors?: string[], customFiles?: ProjectFile[] }} Version
  * @typedef {{ id: string, userId: string, name: string, category: string, framework: string, prompt: string, createdAt: string, updatedAt: string,
  *   favorite: boolean, currentVersionId: string, versions: Version[], assets: ProjectFile[], chat: { role: 'user' | 'assistant', text: string, at: string }[] }} Project
  */
@@ -104,7 +104,7 @@ export function addVersion(project, input) {
 export function restoreVersion(project, versionId) {
   const v = project.versions.find((x) => x.id === versionId)
   if (!v) return project
-  return addVersion(project, { summary: `Restored “${v.summary}”`, spec: v.spec, files: v.files, buildStatus: v.buildStatus, source: 'restore' })
+  return addVersion(project, { summary: `Restored “${v.summary}”`, spec: v.spec, files: v.files, customFiles: v.customFiles ?? [], buildStatus: v.buildStatus, source: 'restore' })
 }
 
 /** Undo/redo move the pointer through history without creating versions. @param {Project} project @param {-1 | 1} step */
@@ -118,5 +118,6 @@ export function stepVersion(project, step) {
 export function duplicateProject(project, versionId) {
   const source = versionId ? project.versions.find((v) => v.id === versionId) ?? currentVersion(project) : currentVersion(project)
   const copy = createProject({ userId: project.userId, spec: { ...source.spec, name: `${project.name} copy`.slice(0, 40) }, files: source.files, summary: `Duplicated from ${project.name}`, source: 'manual', assets: project.assets })
-  return { ...copy, name: `${project.name} copy`.slice(0, 40) }
+  copy.versions[0].customFiles = source.customFiles ?? []
+  return { ...copy, name: `${project.name} copy`.slice(0, 40), favorite: false }
 }
