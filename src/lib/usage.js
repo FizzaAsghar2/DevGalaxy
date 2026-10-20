@@ -12,6 +12,9 @@ export const USAGE_ACTIONS = {
   UI_REGENERATION: { label: 'UI regenerations', short: 'Regenerations', estCents: 3 },
   DESIGN_VARIATION: { label: 'Design variations', short: 'Variations', estCents: 3 },
   AI_UI_CUSTOMIZATION: { label: 'AI customisations', short: 'AI edits', estCents: 2 },
+  STUDIO_PLAN: { label: 'Studio website plans', short: 'Plans', estCents: 2 },
+  STUDIO_VARIATIONS: { label: 'Studio design variations', short: 'Directions', estCents: 3 },
+  STUDIO_EDIT: { label: 'Studio AI edits', short: 'Studio edits', estCents: 4 },
 }
 
 export function monthStart(now = new Date()) {
