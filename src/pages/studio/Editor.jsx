@@ -307,7 +307,10 @@ export default function Editor() {
           <div className="flex gap-0.5 p-2">{leftTabs.map((t) => tabButton(t, left === t.key, () => setLeft(t.key)))}</div>
           <div className="min-h-0 flex-1 overflow-auto px-3 pb-3">{leftPanel(leftTabs.some((t) => t.key === left) ? left : 'pages')}</div>
         </aside>
-        <main className="min-h-0">{view === 'code' && !simple ? code : stage}</main>
+        <main className="min-h-0">
+          {view === 'code' && !simple && code}
+          <div className={view === 'code' && !simple ? 'hidden' : 'h-full min-h-0'}>{stage}</div>
+        </main>
         <aside className="flex min-h-0 flex-col border-l border-white/10 bg-void-800/40">
           <div className="flex gap-0.5 p-2">{RIGHT_TABS.map((t) => tabButton(t, right === t.key, () => setRight(t.key)))}</div>
           <div className="min-h-0 flex-1 overflow-auto px-3 pb-3">{rightPanel(right)}</div>
