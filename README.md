@@ -1,6 +1,11 @@
-# DevGalaxy
+# DevGalaxy · Galaxy Studio
 
-**See your app before you build it.** DevGalaxy turns a one-sentence product idea into an interactive
+**Your ideas. Beautiful websites. Powered by AI.** Galaxy Studio (`/studio/new`, `/projects`) turns a
+website description into a structured plan, design variations, real React + Tailwind source code, a live
+sandboxed preview, chat-driven edits with version history, and a downloadable project ZIP. See
+[docs/galaxy-studio.md](docs/galaxy-studio.md).
+
+**The architecture galaxy is still here:** DevGalaxy turns a one-sentence product idea into an interactive
 3D architecture galaxy — pages, features, user roles, database schema, APIs and a recommended stack,
 orbiting the project core.
 
@@ -64,7 +69,11 @@ Copy `.env.example`. Only `VITE_`-prefixed variables reach the browser; the AI k
 | `VITE_SUPABASE_URL` | client | Supabase project URL |
 | `VITE_SUPABASE_ANON_KEY` | client | Supabase anon key (RLS enforced) |
 | `CLERK_SECRET_KEY` | server | Verifies the caller's session token in `/api/generate` |
-| `AI_API_KEY` | server | OpenAI-compatible API key |
+| `AI_PROVIDER` | server | `openai` (any OpenAI-compatible API), `anthropic` or `gemini`; default `openai` |
+| `AI_API_KEY` | server | Provider API key |
+| `AI_MODEL_FAST` | server | Optional cheaper model for small Studio edits |
+| `AI_TIMEOUT_MS` | server | Optional provider timeout (default 90000) |
+| `AI_MAX_REQUEST_USD` / `AI_DAILY_BUDGET_USD` | server | Optional per-request and daily AI spend caps |
 | `AI_BASE_URL` | server | Defaults to `https://api.openai.com/v1` |
 | `AI_MODEL` | server | Defaults to `gpt-4o-mini` |
 | `SUPABASE_SERVICE_ROLE_KEY` | server | Roles, AI usage, `/admin` and source export (never expose) |
@@ -106,7 +115,22 @@ is rendered or saved, so a malformed model response can never corrupt a galaxy.
 
 Any OpenAI-compatible provider works — set `AI_BASE_URL` to Groq, OpenRouter, Together, etc.
 
-## UI Preview
+## Galaxy Studio
+
+Describe → review plan → choose design → edit. Full details, security model and limitations are in
+[docs/galaxy-studio.md](docs/galaxy-studio.md). In short:
+
+- Projects and every version are stored in this browser (IndexedDB), scoped per signed-in user. Labelled
+  “Saved in this browser”; nothing is synced to a server yet.
+- Without `AI_API_KEY` the Studio runs in **Offline (Demo)** mode: a rule-based planner and editor that
+  understands common requests (“make the navbar sticky”, “change the theme to emerald”, “add a contact
+  section”). Unsupported requests are reported, never faked.
+- Previews are compiled on the server by `api/studio-build.js` (esbuild + Tailwind, in memory, import
+  allow-list) and run in a sandboxed iframe without `allow-same-origin`, with a CSP that blocks network
+  access, frames and form posts.
+- Download ZIP produces a standalone React/Vite or Next.js + TypeScript project.
+
+## UI Preview (architecture galaxy)
 
 Every galaxy can be turned into a clickable multi-page prototype (Workspace → **UI Preview**).
 `/api/generate-ui` produces a `uiDesign` + `uiPages` spec with exactly one UI page per architecture page,
@@ -187,7 +211,15 @@ The 3D layer is designed to stay smooth on an ordinary laptop:
 ## Project structure
 
 ```
-api/                         serverless API: generate, generate-ui, me, admin, export (server only)
+api/                         serverless API: generate, generate-ui, me, admin, export, studio-ai, studio-build
+api/_lib/providers.js        OpenAI-compatible / Anthropic / Gemini provider abstraction (server only)
+api/_lib/studioUsage.js      Studio AI budgets (request/day/month) and usage ledger
+src/studio/core/             Galaxy Studio planner, design tokens, code generator, offline editor, path/secret checks, ZIP
+src/studio/                  Studio API client, IndexedDB storage, preview document, examples
+src/pages/studio/            new project, editor, projects, preview pages
+src/components/studio/       preview frame, spec editor, variations, chat, design, code inspector, versions, assets
+tests/                       Vitest suites (npm test)
+docs/                        Galaxy Studio documentation
 api/_lib/sourceZip.js        allow-listed, secret-free source ZIP builder
 src/auth/                    Clerk provider + local demo fallback
 src/components/three/        canvas, starfield, nebula, orbs, curved connections

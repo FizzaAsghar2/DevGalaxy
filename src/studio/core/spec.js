@@ -29,6 +29,7 @@ export const CARD_STYLES = ['bordered', 'elevated', 'flat']
  * }} SiteSpec
  */
 
+/** @type {Array<[string, RegExp]>} */
 const CATEGORY_RULES = [
   ['E-commerce frontend', /\b(shop|store|e-?commerce|product|perfume|fashion|jewel|cosmetic|boutique|sneaker|clothing|merch)\w*/],
   ['Restaurant', /\b(restaurant|cafe|café|coffee|bakery|bistro|menu|food|pizza|sushi|bar)\b/],

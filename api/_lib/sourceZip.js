@@ -7,12 +7,12 @@ import { deflateRawSync } from 'node:zlib'
  * paths are included, secret-bearing files are always skipped, and any file
  * containing the value of a configured server secret is dropped as well.
  */
-const INCLUDE_DIRS = ['src', 'api', 'public', 'supabase']
+const INCLUDE_DIRS = ['src', 'api', 'public', 'supabase', 'docs', 'tests']
 const INCLUDE_FILES = [
   'README.md', 'AGENTS.md', 'package.json', 'package-lock.json', 'index.html', 'vite.config.js', 'tailwind.config.js',
-  'postcss.config.js', '.oxlintrc.json', 'vercel.json', '.env.example', '.gitignore',
+  'postcss.config.js', '.oxlintrc.json', 'vercel.json', '.env.example', '.gitignore', 'tsconfig.json',
 ]
-const SKIP_NAMES = new Set(['node_modules', '.git', 'dist', 'dist-ssr', '.vercel', '.DS_Store', 'coverage', '.cache'])
+const SKIP_NAMES = new Set(['node_modules', '.git', 'dist', 'dist-ssr', '.vercel', '.DS_Store', 'coverage', '.cache', '.devgalaxy'])
 const SKIP_PATTERNS = [/^\.env(\..*)?$/, /\.(pem|key|p12|pfx|log|dump|sqlite3?|db|bak)$/i, /\.sql\.gz$/i, /^id_(rsa|ed25519)/]
 const SECRET_ENV = ['CLERK_SECRET_KEY', 'SUPABASE_SERVICE_ROLE_KEY', 'AI_API_KEY', 'VITE_SUPABASE_ANON_KEY']
 

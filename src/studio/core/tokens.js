@@ -93,7 +93,11 @@ export function readableOn(bg) {
   return contrast(bg, '#ffffff') >= contrast(bg, '#111111') ? '#ffffff' : '#111111'
 }
 
-/** Builds a complete, accessible palette around a background and a primary colour. @returns {Palette} */
+/**
+ * Builds a complete, accessible palette around a background and a primary colour.
+ * @param {{ primary: string, background: string, accent?: string }} input
+ * @returns {Palette}
+ */
 export function buildPalette({ primary, background, accent }) {
   const dark = luminance(background) < 0.2
   const text = dark ? '#f5f5f4' : '#18181b'
