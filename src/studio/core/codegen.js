@@ -87,8 +87,7 @@ const SECTION_SOURCES = /** @type {Record<string, (spec: SiteSpec) => string>} *
   hero: (spec) => `import { ArrowRight } from 'lucide-react'
 import { Link } from '../../router'
 import type { SectionData } from '../../data/site'
-import art from '../../assets/art-0.svg'
-
+${spec.style.heroLayout === 'split' ? "import art from '../../assets/art-0.svg'\n" : ''}
 export default function HeroSection({ data }: { data: SectionData }) {
   const [primary, secondary] = data.items
   return (

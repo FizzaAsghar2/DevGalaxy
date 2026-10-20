@@ -66,5 +66,7 @@ source ~/.nvm/nvm.sh   # Node via nvm
 npm install
 npm run dev            # http://localhost:5173 (local /api/* via Vite middleware)
 npm run lint           # oxlint
+npm run typecheck      # tsc over src/studio
+npm test               # vitest
 npm run build
 ```
