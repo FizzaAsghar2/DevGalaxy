@@ -36,6 +36,7 @@ function useHashScroll() {
 
 export default function AppLayout() {
   useHashScroll()
+  const { pathname } = useLocation()
   return (
     <div className="flex min-h-full flex-col">
       <DemoBanner />
@@ -43,9 +44,9 @@ export default function AppLayout() {
       <main className="flex-1">
         <Outlet />
       </main>
-      <footer className="border-t border-white/5 px-4 py-6 text-center text-xs text-slate-500">
-        DevGalaxy — see your app before you build it.
-      </footer>
+      {!/^\/studio\/(?!new)/.test(pathname) && <footer className="border-t border-white/5 px-4 py-6 text-center text-xs text-slate-500">
+        DevGalaxy · Galaxy Studio — plan, design and build websites with AI.
+      </footer>}
     </div>
   )
 }

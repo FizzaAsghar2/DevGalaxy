@@ -7,9 +7,10 @@ import { useSession } from '../../auth/AuthProvider'
 const LINKS = [
   { to: '/', label: 'Home' },
   { to: '/#features', label: 'Features' },
-  { to: '/#how-it-works', label: 'How It Works' },
+  { to: '/#examples', label: 'Examples' },
   { to: '/galaxy/demo', label: 'Explore Demo' },
-  { to: '/galaxies', label: 'My Workspace', protected: true },
+  { to: '/projects', label: 'Projects', protected: true },
+  { to: '/galaxies', label: 'Architecture', protected: true },
   { to: '/settings', label: 'Settings', protected: true },
   { to: '/admin', label: 'Admin', protected: true, admin: true },
 ]
