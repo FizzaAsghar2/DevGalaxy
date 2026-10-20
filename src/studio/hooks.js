@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, useSyncExternalStore } from 'react'
 import { useSession } from '../auth/AuthProvider'
 import { getStudioStatus } from './api'
 
@@ -17,4 +17,17 @@ export function useStudioStatus() {
     refresh()
   }, [refresh])
   return { status, refresh }
+}
+
+/** Tracks a CSS media query so only one responsive layout is mounted at a time. */
+export function useMediaQuery(query) {
+  return useSyncExternalStore(
+    (onChange) => {
+      const list = window.matchMedia(query)
+      list.addEventListener('change', onChange)
+      return () => list.removeEventListener('change', onChange)
+    },
+    () => window.matchMedia(query).matches,
+    () => false,
+  )
 }

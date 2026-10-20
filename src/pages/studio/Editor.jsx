@@ -19,7 +19,7 @@ import { addVersion, currentVersion, duplicateProject, getProject, restoreVersio
 import { editSite } from '../../studio/api'
 import { composeFiles } from '../../studio/compose'
 import { downloadProjectZip } from '../../studio/download'
-import { useStudioStatus, useStudioUser } from '../../studio/hooks'
+import { useMediaQuery, useStudioStatus, useStudioUser } from '../../studio/hooks'
 
 const LEFT_TABS = [
   { key: 'pages', label: 'Pages', icon: LayoutTemplate },
@@ -58,6 +58,7 @@ export default function Editor() {
   const [planDraft, setPlanDraft] = useState(null)
   const [renaming, setRenaming] = useState(false)
   const frameRef = useRef(null)
+  const desktop = useMediaQuery('(min-width: 1024px)')
   const stageRef = useRef(null)
   const projectRef = useRef(project)
   useEffect(() => { projectRef.current = project }, [project])
@@ -300,7 +301,8 @@ export default function Editor() {
       )}
 
       {/* Desktop: three columns */}
-      <div className="hidden min-h-0 flex-1 lg:grid lg:grid-cols-[250px_1fr_340px]">
+      {desktop ? (
+      <div className="grid min-h-0 flex-1 grid-cols-[250px_1fr_340px]">
         <aside className="flex min-h-0 flex-col border-r border-white/10 bg-void-800/40">
           <div className="flex gap-0.5 p-2">{leftTabs.map((t) => tabButton(t, left === t.key, () => setLeft(t.key)))}</div>
           <div className="min-h-0 flex-1 overflow-auto px-3 pb-3">{leftPanel(leftTabs.some((t) => t.key === left) ? left : 'pages')}</div>
@@ -311,15 +313,16 @@ export default function Editor() {
           <div className="min-h-0 flex-1 overflow-auto px-3 pb-3">{rightPanel(right)}</div>
         </aside>
       </div>
-
-      {/* Tablet & mobile: one panel at a time */}
-      <div className="flex min-h-0 flex-1 flex-col lg:hidden">
+      ) : (
+      /* Tablet & mobile: one panel at a time */
+      <div className="flex min-h-0 flex-1 flex-col">
         <div className={`min-h-0 flex-1 ${mobile === 'preview' ? '' : 'hidden'}`}>{stage}</div>
         {mobile !== 'preview' && <div className="min-h-0 flex-1 overflow-auto p-3">{mobile === 'chat' || mobile === 'design' ? rightPanel(mobile) : leftPanel(mobile)}</div>}
         <nav className="flex gap-0.5 border-t border-white/10 bg-void-800/90 p-1.5" aria-label="Editor panels">
           {MOBILE_TABS.map((t) => tabButton(t, mobile === t.key, () => setMobile(t.key)))}
         </nav>
       </div>
+      )}
 
       <Modal wide open={Boolean(compare)} title="Compare versions" description="Selected version (−) against the current version (+)." onClose={() => setCompare(null)}>
         {compare && <DiffView before={project.versions.find((v) => v.id === compare)?.files ?? []} after={files} />}
