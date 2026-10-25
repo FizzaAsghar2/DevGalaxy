@@ -13,6 +13,7 @@ export const VIEWPORTS = { desktop: '100%', tablet: '820px', mobile: '390px' }
 const PreviewFrame = forwardRef(function PreviewFrame({ files, fonts, viewport = 'desktop', route = '/', buildKey, getToken, onStatus, onRoute, className = '' }, ref) {
   const frame = useRef(null)
   const [doc, setDoc] = useState('')
+  const docRef = useRef('')
   const [state, setState] = useState({ phase: 'building', errors: [] })
   const latest = useRef(0)
   const routeRef = useRef(route)
@@ -34,9 +35,13 @@ const PreviewFrame = forwardRef(function PreviewFrame({ files, fonts, viewport =
         onStatus?.(next)
         return
       }
-      setDoc(previewDocument({ js: result.js, css: result.css, fonts, route: routeRef.current }))
-      setState({ phase: 'starting', errors: [], ms: result.ms })
-      onStatus?.({ phase: 'starting', errors: [], ms: result.ms })
+      const next = previewDocument({ js: result.js, css: result.css, fonts, route: routeRef.current })
+      // An identical document (e.g. an edit reverted after a failed build) won't reload the iframe, so it is already running.
+      const phase = next === docRef.current ? 'ready' : 'starting'
+      docRef.current = next
+      setDoc(next)
+      setState({ phase, errors: [], ms: result.ms })
+      onStatus?.({ phase, errors: [], ms: result.ms })
     }, 250)
     return () => clearTimeout(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
