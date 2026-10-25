@@ -260,7 +260,7 @@ export default function Editor() {
     onSaveFile={(path, content) => { const custom = new Map((version.customFiles ?? []).map((f) => [f.path, f])); custom.set(path, { path, content }); commit({ customFiles: [...custom.values()], summary: `Edited ${path}`, source: 'manual' }) }} /></div>
 
   return (
-    <div className="flex h-[calc(100dvh-4rem)] flex-col">
+    <div className="flex h-full flex-col">
       <header className="flex flex-wrap items-center gap-2 border-b border-white/10 bg-void-800/70 px-3 py-2 backdrop-blur">
         <Link to="/projects" className="btn-ghost p-2" aria-label="Back to projects"><ArrowLeft className="h-4 w-4" /></Link>
         {renaming ? (

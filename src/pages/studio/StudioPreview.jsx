@@ -39,7 +39,7 @@ export default function StudioPreview() {
   if (state === null) return <div className="mx-auto max-w-lg pt-24"><ErrorState title={slug ? 'Example not found' : 'Project not found'} message="Check the link, or open it from your projects." action={<Link className="btn-primary" to={slug ? '/#examples' : '/projects'}>Go back</Link>} /></div>
 
   return (
-    <div className="flex h-[calc(100dvh-4rem)] flex-col">
+    <div className="flex h-full flex-col">
       <div className="flex flex-wrap items-center gap-2 border-b border-white/10 bg-void-800/70 px-3 py-2">
         <Link to={slug ? '/#examples' : '/projects'} className="btn-ghost p-2" aria-label="Back"><ArrowLeft className="h-4 w-4" /></Link>
         <span className="font-display text-white">{state.name}</span>

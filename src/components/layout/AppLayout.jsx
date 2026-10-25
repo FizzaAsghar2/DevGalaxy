@@ -37,14 +37,15 @@ function useHashScroll() {
 export default function AppLayout() {
   useHashScroll()
   const { pathname } = useLocation()
+  const workspace = /^\/studio\/(?!new)/.test(pathname)
   return (
-    <div className="flex min-h-full flex-col">
+    <div className={workspace ? 'flex h-dvh flex-col overflow-hidden' : 'flex min-h-full flex-col'}>
       <DemoBanner />
       <Navbar />
-      <main className="flex-1">
+      <main className={workspace ? 'min-h-0 flex-1' : 'flex-1'}>
         <Outlet />
       </main>
-      {!/^\/studio\/(?!new)/.test(pathname) && <footer className="border-t border-white/5 px-4 py-6 text-center text-xs text-slate-500">
+      {!workspace && <footer className="border-t border-white/5 px-4 py-6 text-center text-xs text-slate-500">
         DevGalaxy · Galaxy Studio — plan, design and build websites with AI.
       </footer>}
     </div>
