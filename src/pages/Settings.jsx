@@ -32,7 +32,7 @@ function AiTab() {
   const { status, refresh } = useStudioStatus()
   const fmt = (v) => (v == null ? 'No limit' : `$${Number(v).toFixed(2)}`)
   return (
-    <div className="grid gap-4 lg:grid-cols-2">
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 [&>*]:min-w-0">
       <Card title="Galaxy Studio AI provider">
         {!status ? <p className="flex items-center gap-2 text-sm text-slate-400"><Loader2 className="h-4 w-4 animate-spin" /> Checking the server…</p> : (
           <div className="space-y-3 text-sm">

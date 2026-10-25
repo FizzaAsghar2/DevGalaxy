@@ -227,9 +227,9 @@ export default function Editor() {
     )
   }
 
-  const tabButton = (t, active, onClick) => (
-    <button key={t.key} type="button" onClick={onClick} aria-pressed={active} className={`flex flex-1 items-center justify-center gap-1 rounded-lg px-2 py-1.5 text-[11px] ${active ? 'bg-white/10 text-white' : 'text-slate-400 hover:text-white'}`}>
-      <t.icon className="h-3.5 w-3.5" /> {t.label}
+  const tabButton = (t, active, onClick, stacked = false) => (
+    <button key={t.key} type="button" onClick={onClick} aria-pressed={active} className={`flex min-w-0 flex-1 items-center justify-center rounded-lg px-1.5 py-1.5 text-[11px] ${stacked ? 'flex-col gap-0.5' : 'gap-1'} ${active ? 'bg-white/10 text-white' : 'text-slate-400 hover:text-white'}`}>
+      <t.icon className="h-3.5 w-3.5 shrink-0" /> <span className="max-w-full truncate">{t.label}</span>
     </button>
   )
   const leftTabs = LEFT_TABS.filter((t) => !(simple && t.advanced))
@@ -322,7 +322,7 @@ export default function Editor() {
         <div className={`min-h-0 flex-1 ${mobile === 'preview' ? '' : 'hidden'}`}>{stage}</div>
         {mobile !== 'preview' && <div className="min-h-0 flex-1 overflow-auto p-3">{mobile === 'chat' || mobile === 'design' ? rightPanel(mobile) : leftPanel(mobile)}</div>}
         <nav className="flex gap-0.5 border-t border-white/10 bg-void-800/90 p-1.5" aria-label="Editor panels">
-          {MOBILE_TABS.map((t) => tabButton(t, mobile === t.key, () => setMobile(t.key)))}
+          {MOBILE_TABS.map((t) => tabButton(t, mobile === t.key, () => setMobile(t.key), true))}
         </nav>
       </div>
       )}
