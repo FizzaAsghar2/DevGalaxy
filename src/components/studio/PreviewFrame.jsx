@@ -42,6 +42,15 @@ const PreviewFrame = forwardRef(function PreviewFrame({ files, fonts, viewport =
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [files, buildKey])
 
+  // The load event is a fallback for a missed gs:ready (e.g. the frame finished loading while hidden).
+  const markLoaded = () => {
+    setState((s) => {
+      if (s.phase !== 'starting') return s
+      onStatus?.({ phase: 'ready', errors: [] })
+      return { ...s, phase: 'ready' }
+    })
+  }
+
   useEffect(() => {
     const onMessage = (event) => {
       if (event.source !== frame.current?.contentWindow) return
@@ -68,6 +77,7 @@ const PreviewFrame = forwardRef(function PreviewFrame({ files, fonts, viewport =
             title="Website preview"
             sandbox="allow-scripts allow-forms"
             srcDoc={doc}
+            onLoad={markLoaded}
             className={`h-full w-full rounded-xl border border-white/10 bg-white ${state.phase === 'failed' ? 'opacity-30' : ''}`}
           />
         )}

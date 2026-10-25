@@ -302,12 +302,12 @@ export default function Editor() {
 
       {/* Desktop: three columns */}
       {desktop ? (
-      <div className="grid min-h-0 flex-1 grid-cols-[250px_1fr_340px]">
+      <div className="grid min-h-0 flex-1 grid-cols-[250px_minmax(0,1fr)_340px]">
         <aside className="flex min-h-0 flex-col border-r border-white/10 bg-void-800/40">
           <div className="flex gap-0.5 p-2">{leftTabs.map((t) => tabButton(t, left === t.key, () => setLeft(t.key)))}</div>
           <div className="min-h-0 flex-1 overflow-auto px-3 pb-3">{leftPanel(leftTabs.some((t) => t.key === left) ? left : 'pages')}</div>
         </aside>
-        <main className="min-h-0">
+        <main className="min-h-0 min-w-0">
           {view === 'code' && !simple && code}
           <div className={view === 'code' && !simple ? 'hidden' : 'h-full min-h-0'}>{stage}</div>
         </main>
