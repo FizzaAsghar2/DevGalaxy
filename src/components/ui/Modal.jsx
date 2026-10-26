@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { X } from 'lucide-react'
 
-export default function Modal({ open, title, description, onClose, children, footer }) {
+export default function Modal({ open, title, description, onClose, children, footer, wide = false }) {
   useEffect(() => {
     if (!open) return undefined
     const onKey = (event) => event.key === 'Escape' && onClose()
@@ -26,7 +26,7 @@ export default function Modal({ open, title, description, onClose, children, foo
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 12, scale: 0.98 }}
             transition={{ type: 'spring', stiffness: 280, damping: 26 }}
-            className="glass-strong w-full max-w-md rounded-2xl p-5"
+            className={`glass-strong w-full ${wide ? "max-w-4xl" : "max-w-md"} rounded-2xl p-5`}
             onClick={(event) => event.stopPropagation()}
             role="dialog"
             aria-modal="true"

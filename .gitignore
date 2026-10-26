@@ -27,3 +27,6 @@ dist-ssr
 .env
 .env.*
 !.env.example
+
+# Local Galaxy Studio AI usage ledger (dev server without Supabase)
+.devgalaxy

@@ -150,3 +150,19 @@
   color: var(--p-muted);
   opacity: 0.8;
 }
+
+/* Galaxy Studio code inspector line numbers */
+.gs-code .gs-ln::before {
+  content: attr(data-ln);
+  display: inline-block;
+  width: 2.5rem;
+  margin-right: 0.75rem;
+  text-align: right;
+  color: rgb(100 116 139 / 0.7);
+  user-select: none;
+}
+.gs-code .gs-err {
+  display: inline-block;
+  width: 100%;
+  background: rgb(244 63 94 / 0.18);
+}

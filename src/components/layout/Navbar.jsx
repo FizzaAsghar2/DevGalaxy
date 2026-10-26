@@ -7,9 +7,10 @@ import { useSession } from '../../auth/AuthProvider'
 const LINKS = [
   { to: '/', label: 'Home' },
   { to: '/#features', label: 'Features' },
-  { to: '/#how-it-works', label: 'How It Works' },
+  { to: '/#examples', label: 'Examples' },
   { to: '/galaxy/demo', label: 'Explore Demo' },
-  { to: '/galaxies', label: 'My Workspace', protected: true },
+  { to: '/projects', label: 'Projects', protected: true },
+  { to: '/galaxies', label: 'Architecture', protected: true },
   { to: '/settings', label: 'Settings', protected: true },
   { to: '/admin', label: 'Admin', protected: true, admin: true },
 ]
@@ -44,7 +45,7 @@ export default function Navbar() {
       <nav className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
         <Logo />
 
-        <div className="hidden items-center gap-1 md:flex">
+        <div className="hidden items-center gap-1 lg:flex">
           {links.map((link) => (
             <NavLink
               key={link.to}
@@ -62,7 +63,7 @@ export default function Navbar() {
           ))}
         </div>
 
-        <div className="hidden items-center gap-2 md:flex">
+        <div className="hidden items-center gap-2 lg:flex">
           {isSignedIn ? (
             <>
               <button type="button" className="btn-primary" onClick={() => navigate('/create')}>
@@ -99,7 +100,7 @@ export default function Navbar() {
 
         <button
           type="button"
-          className="btn-ghost px-2.5 md:hidden"
+          className="btn-ghost px-2.5 lg:hidden"
           onClick={() => setOpen((value) => !value)}
           aria-label="Toggle navigation"
           aria-expanded={open}
@@ -109,7 +110,7 @@ export default function Navbar() {
       </nav>
 
       {open && (
-        <div className="border-t border-white/5 bg-void-900/95 px-4 pb-4 pt-2 md:hidden">
+        <div className="border-t border-white/5 bg-void-900/95 px-4 pb-4 pt-2 lg:hidden">
           <div className="flex flex-col gap-1">
             {links.map((link) => (
               <Link

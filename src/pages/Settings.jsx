@@ -9,9 +9,12 @@ import { isClerkConfigured, isDemoMode, isSupabaseConfigured, sourceRepoUrl } fr
 import { USAGE_ACTIONS, formatCents } from '../lib/usage'
 import Modal from '../components/ui/Modal'
 import WorkspaceModeChip from '../components/ui/WorkspaceModeChip'
+import ModeBadge from '../components/studio/ModeBadge'
+import { useStudioStatus } from '../studio/hooks'
 
 const TABS = [
   { key: 'usage', label: 'Usage & spend', icon: Activity },
+  { key: 'ai', label: 'AI provider', icon: Cpu },
   { key: 'export', label: 'Export', icon: FileArchive },
   { key: 'workspace', label: 'Workspace', icon: Cloud },
 ]
@@ -22,6 +25,63 @@ function Card({ title, children, className = '' }) {
       {title && <h2 className="label-muted mb-3">{title}</h2>}
       {children}
     </section>
+  )
+}
+
+function AiTab() {
+  const { status, refresh } = useStudioStatus()
+  const fmt = (v) => (v == null ? 'No limit' : `$${Number(v).toFixed(2)}`)
+  return (
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 [&>*]:min-w-0">
+      <Card title="Galaxy Studio AI provider">
+        {!status ? <p className="flex items-center gap-2 text-sm text-slate-400"><Loader2 className="h-4 w-4 animate-spin" /> Checking the server…</p> : (
+          <div className="space-y-3 text-sm">
+            <ModeBadge status={status} />
+            {status.aiConfigured ? (
+              <p className="text-slate-300">Plans, variations and chat edits are sent from the server to <b>{status.provider}</b> using <code className="font-mono">{status.model}</code>{status.fastModel && status.fastModel !== status.model ? <> (fast: <code className="font-mono">{status.fastModel}</code>)</> : null}. Your key never reaches the browser.</p>
+            ) : (
+              <p className="text-slate-300">{status.reachable ? 'The server has no AI key configured.' : 'The Galaxy Studio API could not be reached.'} Studio is running in <b>Offline (Demo)</b> mode: plans and edits come from built-in rules, not an AI model.</p>
+            )}
+            <button type="button" className="btn-ghost px-3 py-1.5 text-xs" onClick={refresh}>Re-check</button>
+          </div>
+        )}
+        <div className="mt-4 rounded-xl bg-black/30 p-3 text-xs text-slate-400">
+          <p className="mb-2 text-slate-300">To connect a provider, set these server environment variables (never with a <code>VITE_</code> prefix) and restart:</p>
+          <pre className="overflow-auto font-mono text-[11px] leading-5 text-slate-300">{`AI_PROVIDER=openai        # openai | anthropic | gemini
+AI_API_KEY=<your-key>
+AI_MODEL=<model-id>
+AI_MODEL_FAST=<optional-cheaper-model>
+AI_BASE_URL=<optional, OpenAI-compatible endpoint>`}</pre>
+        </div>
+      </Card>
+      <Card title="Personal spending limits">
+        <dl className="grid grid-cols-2 gap-3 text-sm">
+          {[['Per request', status?.limits?.requestUsd, 'AI_MAX_REQUEST_USD'], ['Per day', status?.limits?.dailyUsd, 'AI_DAILY_BUDGET_USD'], ['Per month', status?.limits?.monthlyUsd, 'AI_MONTHLY_BUDGET_USD'], ['Price / 1M tokens', status?.limits?.usdPerMillionTokens, 'AI_USD_PER_MILLION_TOKENS']].map(([label, value, env]) => (
+            <div key={env} className="rounded-xl bg-white/[0.03] p-3">
+              <dt className="text-xs text-slate-500">{label}</dt>
+              <dd className="mt-1 font-display text-lg text-white">{fmt(value)}</dd>
+              <dd className="font-mono text-[10px] text-slate-500">{env}</dd>
+            </div>
+          ))}
+        </dl>
+        <p className="mt-3 text-xs text-slate-500">Requests are blocked once a limit is reached. Limits are set on the server so they cannot be bypassed from the browser. This is personal cost control, not billing.</p>
+      </Card>
+      <Card title="Recent Studio AI requests" className="lg:col-span-2">
+        {status?.managed ? <p className="text-sm text-slate-400">Requests are recorded in your Supabase usage log — see Usage & spend.</p>
+          : !status?.ledger?.length ? <p className="text-sm text-slate-400">No AI requests recorded on this server yet{status?.aiConfigured ? '' : ' (offline edits do not use the AI and cost nothing)'}.</p> : (
+          <div className="overflow-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="text-slate-500"><tr><th className="py-1.5 pr-3">Time</th><th className="pr-3">Operation</th><th className="pr-3">Provider / model</th><th className="pr-3">Tokens</th><th className="pr-3">Est. cost</th><th>Status</th></tr></thead>
+              <tbody className="text-slate-300">
+                {status.ledger.map((e, i) => (
+                  <tr key={i} className="border-t border-white/5"><td className="py-1.5 pr-3">{e.created_at ? new Date(e.created_at).toLocaleString() : '—'}</td><td className="pr-3">{e.op}</td><td className="pr-3">{e.provider} / {e.model}</td><td className="pr-3">{e.tokens ?? '—'}</td><td className="pr-3">{formatCents(e.cost_cents ?? 0)}</td><td>{e.status}</td></tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
+    </div>
   )
 }
 
@@ -223,6 +283,7 @@ export default function Settings() {
       </nav>
       <motion.div key={tab} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="mt-6">
         {tab === 'usage' && <UsageTab />}
+        {tab === 'ai' && <AiTab />}
         {tab === 'export' && <ExportTab />}
         {tab === 'workspace' && <WorkspaceTab />}
       </motion.div>

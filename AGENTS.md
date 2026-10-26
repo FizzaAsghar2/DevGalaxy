@@ -47,7 +47,11 @@ These rules apply to every feature or module added to DevGalaxy.
 ## 7. Security (unchanged)
 - Identity comes from verified Clerk tokens; roles from `profiles.role` via the service key on the server.
   Never grant privileges from client state, `localStorage`, URLs or hardcoded emails/passwords.
-- Generated UIs are structured JSON rendered by trusted components; never execute AI-generated code.
+- Architecture-galaxy UI previews are structured JSON rendered by trusted components.
+- Galaxy Studio websites are real generated code: validate paths/content (`src/studio/core/paths.js`), compile
+  on the server from memory with an import allow-list (`api/studio-build.js`), and run them only in a
+  sandboxed iframe (`allow-scripts allow-forms`, never `allow-same-origin`) with a restrictive CSP. Never
+  execute generated code in the main app or in the server process.
 - Server-only secrets never use the `VITE_` prefix and never reach the client bundle or the export.
 
 ## Definition of done
@@ -62,5 +66,7 @@ source ~/.nvm/nvm.sh   # Node via nvm
 npm install
 npm run dev            # http://localhost:5173 (local /api/* via Vite middleware)
 npm run lint           # oxlint
+npm run typecheck      # tsc over src/studio
+npm test               # vitest
 npm run build
 ```

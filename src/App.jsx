@@ -14,6 +14,10 @@ const Workspace = lazy(() => import('./pages/Workspace'))
 const NotFound = lazy(() => import('./pages/NotFound'))
 const Settings = lazy(() => import('./pages/Settings'))
 const Admin = lazy(() => import('./pages/Admin'))
+const Projects = lazy(() => import('./pages/studio/Projects'))
+const NewProject = lazy(() => import('./pages/studio/NewProject'))
+const Editor = lazy(() => import('./pages/studio/Editor'))
+const StudioPreview = lazy(() => import('./pages/studio/StudioPreview'))
 
 export default function App() {
   return (
@@ -61,6 +65,39 @@ export default function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/projects"
+            element={
+              <ProtectedRoute>
+                <Projects />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/studio/new"
+            element={
+              <ProtectedRoute>
+                <NewProject />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/studio/:id"
+            element={
+              <ProtectedRoute>
+                <Editor />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/studio/:id/preview"
+            element={
+              <ProtectedRoute>
+                <StudioPreview />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="/studio/examples/:slug" element={<StudioPreview />} />
           <Route path="*" element={<NotFound />} />
         </Route>
         <Route path="/galaxy/demo" element={<Workspace demo />} />
